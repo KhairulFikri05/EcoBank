@@ -1,33 +1,30 @@
 import fs from 'fs';
 import path from 'path';
 
-// Mengarahkan ke file dropoffTransactions.json di folder data
+// Mendapatkan path absolut ke file JSON
 const filePath = path.join(process.cwd(), 'data', 'dropoffTransactions.json');
 
 export const DropoffService = {
-  // Fungsi membaca semua transaksi
-  getAllTransactions: () => {
+  getAll: () => {
     if (!fs.existsSync(filePath)) return [];
     const data = fs.readFileSync(filePath, 'utf8');
     return JSON.parse(data || '[]');
   },
-
-  // Fungsi menambah transaksi baru
-  addTransaction: (newTransaction) => {
-    const transactions = DropoffService.getAllTransactions();
-    transactions.push(newTransaction);
-    fs.writeFileSync(filePath, JSON.stringify(transactions, null, 2));
-    return newTransaction;
+  
+  add: (transaction) => {
+    const data = DropoffService.getAll();
+    data.push(transaction);
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    return transaction;
   },
   
-  // Fungsi mengubah status transaksi (Untuk Admin)
-  updateTransactionStatus: (ticketId, newStatus) => {
-    const transactions = DropoffService.getAllTransactions();
-    const index = transactions.findIndex(t => t.ticketId === ticketId);
+  updateStatus: (ticketId, status) => {
+    const data = DropoffService.getAll();
+    const index = data.findIndex(t => t.ticketId === ticketId);
     if (index !== -1) {
-      transactions[index].status = newStatus;
-      fs.writeFileSync(filePath, JSON.stringify(transactions, null, 2));
-      return transactions[index];
+      data[index].status = status;
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+      return data[index];
     }
     return null;
   }
