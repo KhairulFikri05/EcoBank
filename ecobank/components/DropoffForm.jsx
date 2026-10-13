@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { WASTE_TYPES } from "@/lib/constants";
 
+// Ganti fungsi today() yang lama dengan ini:
 function today() {
+  // Pastikan hanya berjalan di client-side/browser
+  if (typeof window === 'undefined') return '';
   const d = new Date();
   const pad = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
