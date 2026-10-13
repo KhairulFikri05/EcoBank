@@ -1,4 +1,3 @@
-Set-Content -Path lib\constants.js -Encoding utf8 -Value @'
 // Konstanta bersama (dipakai UI dan API)
 export const STATUS = {
   PENDING: "Pending",
@@ -17,4 +16,3 @@ export const NEXT_STATUS = {
 export const WASTE_TYPES = ["Plastik", "Kertas", "Kaca", "E-waste"];
 
 export const ADMIN_HEADER = "x-admin-password";
-'@
