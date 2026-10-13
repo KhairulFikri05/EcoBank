@@ -1,0 +1,26 @@
+[
+  {
+    "id": "plastik",
+    "nama": "Botol Plastik",
+    "poinPerKg": 50,
+    "emisiPerKg": 1.5
+  },
+  {
+    "id": "kertas",
+    "nama": "Kardus & Kertas",
+    "poinPerKg": 30,
+    "emisiPerKg": 0.8
+  },
+  {
+    "id": "logam",
+    "nama": "Kaleng Logam",
+    "poinPerKg": 80,
+    "emisiPerKg": 2.0
+  },
+  {
+    "id": "kaca",
+    "nama": "Botol Kaca",
+    "poinPerKg": 20,
+    "emisiPerKg": 0.5
+  }
+]

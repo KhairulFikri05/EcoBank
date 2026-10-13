@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-// Sesuaikan path import dengan struktur folder Anda jika menggunakan src/ atau langsung di root
-import wasteData from '@/data/wasteTypes.json';
+// Path import sudah disesuaikan ke folder content yang baru
+import wasteData from '@/content/wasteTypes.json';
 
 export function useWaste() {
   const [wasteTypes, setWasteTypes] = useState([]);
