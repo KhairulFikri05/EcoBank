@@ -1,36 +1,102 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🌿 EcoBank - Platform Bank Sampah Digital
 
-## Getting Started
+EcoBank adalah aplikasi pengelolaan bank sampah digital yang dirancang untuk memfasilitasi pencatatan setoran sampah, kalkulasi poin insentif, dan estimasi reduksi emisi karbon secara otomatis.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 🚀 Teknologi Utama (Tech Stack)
+
+* **Framework**: Next.js 16 (App Router)
+* **Library**: React 19 JavaScript (JSX)
+* **Styling**: Murni CSS / Utility Classes tanpa library UI eksternal
+* **State Management**: React Context API + `localStorage` (untuk pengelolaan saldo poin)
+* **Backend Storage**: Route Handlers + Penyimpanan berkas JSON lokal
+
+---
+
+## 🏗️ Design Patterns & Arsitektur
+
+### 1. Container-Presenter Pattern
+* **Container (Halaman)**: Memegang seluruh logika bisnis, pemanggilan API, pengelolaan state global, dan pemrosesan form (`app/page.jsx`, `app/admin/page.jsx`).
+* **Presenter (Komponen)**: Murni berfokus pada visualisasi antarmuka berdasarkan *props* yang diterima dari Container.
+
+### 2. Hooks Pattern
+Logika aplikasi dipisah secara modular ke dalam *Custom Hooks*:
+* **`usePoints`**: Mengelola kalkulasi, penambahan, dan konsistensi saldo poin pengguna melalui Context & `localStorage`.
+* **`useDropoff`**: Mengurus alur pengiriman data setoran sampah dan pengambilan respons dari API.
+
+### 3. Strategy Pattern
+Aturan perhitungan poin dan reduksi emisi karbon untuk setiap jenis sampah ($kg$) dipisah menggunakan **Strategy Pattern** di kalkulator. Hal ini mempermudah penyesuaian atau penambahan aturan tarif poin baru di masa mendatang tanpa merusak struktur komponen UI.
+
+---
+
+## 📂 Struktur Folder Proyek
+
+```text
+ecobank/
+├── app/
+│   ├── admin/             # Halaman Portal Admin (Otentikasi ENV)
+│   │   └── page.jsx
+│   ├── api/
+│   │   └── dropoff/       # Route Handler API Setor Sampah (JSON Storage)
+│   │       └── route.js
+│   ├── layout.jsx         # Layout Utama Aplikasi
+│   └── page.jsx           # Halaman Publik Nasabah (Container)
+├── content/
+│   └── wasteTypes.json    # Master Data Statis Jenis Sampah
+├── data/                  # Storage Persisten Docker Volume (Persistensi JSON)
+├── hooks/
+│   ├── usePoints.js       # Hook Manajemen Poin & LocalStorage
+│   └── useDropoff.js      # Hook Pengiriman Tiket Drop-off
+├── lib/
+│   └── wasteStrategy.js   # Implementasi Strategy Pattern Perhitungan Poin
+├── Dockerfile             # Multi-stage Standalone Build
+└── .dockerignore          # Pengecualian Build Docker
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🐳 Konfigurasi & Poin Penting Dockerfile
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Multi-Stage Build**: Proses kompilasi aplikasi dilakukan menggunakan *image* Node.js, diikuti pemisahan *runtime* agar ukuran *container image* akhir menjadi jauh lebih ringan dan efisien.
+2. **Standalone Output**: Aplikasi berjalan menggunakan versi *standalone* Next.js via perintah `node server.js` tanpa bergantung pada dependency dev yang tidak diperlukan.
+3. **Networking (`PORT` & `HOSTNAME`)**: Menggunakan **Port 3000** dan **`HOSTNAME=0.0.0.0`** agar aplikasi dapat diakses secara transparan dari luar kontainer.
+4. **Persistensi Data (`/app/data`)**: Direktori `/app/data` dipetakan ke **Docker Volume** untuk memastikan data transaksi setoran sampah (`drop-off`) tetap aman dan tidak hilang (*persistent*) saat kontainer di-restart.
+5. **Keamanan (`ADMIN_PASSWORD`)**: Kata sandi admin disuntikkan secara dinamis melalui Environment Variable (`ENV`), sehingga kredensial sensitif tidak tersimpan permanen (*hardcoded*) di dalam *image* Docker.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 🛠️ Cara Menjalankan Aplikasi
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 1. Mode Pengembang (Lokal)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+# Install dependencies
+npm install
 
-## Deploy on Vercel
+# Jalankan server pengembangan Next.js
+npm run dev
+```
+Akses di peramban web: `http://localhost:3000`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 2. Mode Kontainer (Docker)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+# 1. Build Docker Image
+docker build -t ecobank-app .
+
+# 2. Jalankan Kontainer dengan Volume dan Environment Variable (Windows CMD)
+docker run -p 3000:3000 -e ADMIN_PASSWORD=admin123 -v "%cd%\data:/app/data" ecobank-app
+
+# Atau menggunakan Windows PowerShell:
+docker run -p 3000:3000 -e ADMIN_PASSWORD=admin123 -v "${PWD}/data:/app/data" ecobank-app
+```
+
+---
+
+## 🔑 Kredensial Akses
+
+* **URL Publik (Nasabah)**: `http://localhost:3000`
+* **URL Portal Admin**: `http://localhost:3000/admin`
+* **Kata Sandi Admin**: Diset via environment variable (`ADMIN_PASSWORD`, default: `admin123`)
+* **Repositori Docker Hub**: `https://hub.docker.com/r/hazai24/ecobank`
