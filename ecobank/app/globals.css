@@ -122,6 +122,14 @@ th { font-size: 0.9rem; color: var(--muted); font-weight: 600; }
   0%, 100% { transform: translateY(0px) rotate(0deg); }
   50% { transform: translateY(-18px) rotate(-4deg); }
 }
+@keyframes mascotFloat {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(2deg);
+  }
+}
 @keyframes fadeSlideUp {
   from { opacity: 0; transform: translateY(24px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -133,6 +141,7 @@ th { font-size: 0.9rem; color: var(--muted); font-weight: 600; }
 
 .anim-float  { animation: float  6s ease-in-out infinite; }
 .anim-float2 { animation: float2 8s ease-in-out infinite; }
+.anim-mascot { animation: mascotFloat 4.5s ease-in-out infinite; }
 .anim-fadein { animation: fadeSlideUp 0.7s ease both; }
 .anim-fadein-d1 { animation: fadeSlideUp 0.7s 0.1s ease both; }
 .anim-fadein-d2 { animation: fadeSlideUp 0.7s 0.2s ease both; }
