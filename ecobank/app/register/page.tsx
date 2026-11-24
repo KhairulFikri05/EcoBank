@@ -22,6 +22,20 @@ export default function RegisterPage() {
     }
     setLoading(true);
     await new Promise((r) => setTimeout(r, 1200));
+    localStorage.setItem(
+      'ecobank_user_profile',
+      JSON.stringify({
+        nama: form.nama,
+        email: form.email,
+        phone: '0812-xxxx-xxxx',
+        address: 'Kota Banda Aceh',
+        joinDate: 'Hari Ini',
+        level: 'Level 1 · Nasabah Baru',
+        idNasabah: `EB-${Date.now().toString().slice(-4)}`,
+        dropPointFavorit: 'Bank Sampah Syiah Kuala',
+        avatarInitial: form.nama ? form.nama[0].toUpperCase() : 'N',
+      })
+    );
     alert(`Akun berhasil dibuat untuk ${form.nama}! Silakan login.`);
     router.push('/login');
   };

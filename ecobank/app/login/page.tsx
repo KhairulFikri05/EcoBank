@@ -25,6 +25,23 @@ export default function LoginPage() {
     await new Promise((r) => setTimeout(r, 1000));
 
     if (form.email === 'user@ecobank.id' && form.password === 'user123') {
+      const existingProfile = localStorage.getItem('ecobank_user_profile');
+      if (!existingProfile) {
+        localStorage.setItem(
+          'ecobank_user_profile',
+          JSON.stringify({
+            nama: 'Rahmat Hidayat',
+            email: 'user@ecobank.id',
+            phone: '0812-3456-7890',
+            address: 'Kec. Syiah Kuala, Kota Banda Aceh',
+            joinDate: 'September 2026',
+            level: 'Level 2 · Green Pioneer',
+            idNasabah: 'EB-2026-089',
+            dropPointFavorit: 'Bank Sampah Syiah Kuala',
+            avatarInitial: 'R',
+          })
+        );
+      }
       router.push('/dashboard');
     } else {
       setError('Email atau password salah. Gunakan demo: user@ecobank.id / user123');
