@@ -224,6 +224,20 @@ function IconX({ className = "w-5 h-5" }: { className?: string }) {
     </svg>
   );
 }
+function IconChevronDown({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+}
+function IconArrowRight({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+    </svg>
+  );
+}
 function IconTrend({ className = "w-4 h-4" }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -821,7 +835,6 @@ export default function DashboardPage() {
                       ? {
                           background: 'linear-gradient(135deg, rgba(52,211,153,0.22), rgba(16,185,129,0.25))',
                           color: '#6ee7b7',
-                          borderLeft: '4px solid #34d399',
                           boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                           fontWeight: 600,
                         }
@@ -1107,10 +1120,15 @@ export default function DashboardPage() {
             </div>
           )}
 
+          {/* Spacer halus untuk tab selain Beranda agar wave pembatas selaras dengan header */}
+          {activeTab !== 'beranda' && (
+            <div className="h-4 sm:h-6" />
+          )}
+
           {/* ── GELOMBANG HALUS / WAVE DIVIDER DENGAN TRANSISI LEMBUT ── */}
           <div className="w-full overflow-hidden leading-none pointer-events-none">
             <svg
-              className="relative block w-full h-8 sm:h-12 md:h-16"
+              className={`relative block w-full ${activeTab === 'beranda' ? 'h-8 sm:h-12 md:h-16' : 'h-7 sm:h-9 md:h-11'}`}
               viewBox="0 0 1440 90"
               preserveAspectRatio="none"
               fill="none"
@@ -1346,16 +1364,8 @@ export default function DashboardPage() {
               TAB 2: SETOR SAMPAH (Kalkulator + Live Kamera)
           ══════════════════════════════════════ */}
           {activeTab === 'setor' && (
-            <div className={`mx-auto transition-all duration-300 ${sidebarOpen ? 'max-w-2xl' : 'max-w-3xl'}`}>
-              <div className="bg-white rounded-3xl p-6 md:p-8 border border-emerald-900/10 shadow-sm space-y-6">
-                <div>
-                  <h3 className="font-bold text-xl text-slate-900 leading-snug">Formulir Setoran Sampah</h3>
-                  <p className="text-xs text-slate-500 mt-1.5 leading-relaxed font-normal">
-                    Hitung perolehan poin dari berat sampah dan sertakan foto dokumentasi setoran untuk verifikasi mitra.
-                  </p>
-                </div>
-                <CalculatorSection onSave={handleSaveDropoff} />
-              </div>
+            <div className="w-full pt-1">
+              <CalculatorSection onSave={handleSaveDropoff} />
             </div>
           )}
 
@@ -1885,13 +1895,28 @@ function HeroStatSlider({
 function CalculatorSection({ onSave }: { onSave: (payload: DropoffPayload) => void }) {
   const { wasteTypes = [] as WasteItem[] } = useWaste() as { wasteTypes?: WasteItem[] };
   const [weights, setWeights] = useState<Record<string, number>>({});
+  const [selectedDropPointId, setSelectedDropPointId] = useState<string>(nearbyDropPoints[0].id);
+  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoName, setPhotoName] = useState<string>('');
   const [isCameraOpen, setIsCameraOpen] = useState<boolean>(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const selectedDropPoint =
+    nearbyDropPoints.find((dp) => dp.id === selectedDropPointId) || nearbyDropPoints[0];
+
   const handleWeightChange = (id: string, weight: number) => {
-    setWeights((prev) => ({ ...prev, [id]: weight }));
+    const clamped = Math.max(0, Math.round(weight * 10) / 10);
+    setWeights((prev) => ({ ...prev, [id]: clamped }));
+  };
+
+  const handleStepWeight = (id: string, delta: number) => {
+    const current = weights[id] ?? 0;
+    handleWeightChange(id, current + delta);
+  };
+
+  const handleResetWeights = () => {
+    setWeights({});
   };
 
   const handleFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1938,132 +1963,344 @@ function CalculatorSection({ onSave }: { onSave: (payload: DropoffPayload) => vo
     }
   };
 
+  const wasteIconStyles: Record<string, string> = {
+    plastik: 'bg-emerald-100/80 text-emerald-700 border-emerald-200/70',
+    kertas: 'bg-teal-50 text-teal-700 border-teal-200/70',
+    logam: 'bg-slate-100 text-slate-600 border-slate-200/80',
+    kaca: 'bg-lime-50 text-lime-700 border-lime-200/80',
+  };
+
   return (
-    <div className="space-y-6">
-      {/* 1. Waste Input List */}
-      <div className="space-y-3">
-        <label className="text-xs font-semibold uppercase tracking-wider text-emerald-800 flex items-center gap-2">
-          <span>1. Pilih Jenis & Masukkan Berat Sampah</span>
-        </label>
-        {wasteTypes.map((item: WasteItem) => (
-          <div key={item.id} className="flex items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl bg-slate-50/80 border border-slate-200/70 hover:border-emerald-200 transition-colors">
-            <div className="p-2.5 rounded-xl bg-white border border-slate-200 text-emerald-600 flex-shrink-0 shadow-xs">
-              <WasteIcon id={item.id} className="w-5 h-5" />
+    <div className="rounded-3xl p-5 sm:p-7 bg-[#edf5f0]/70 border border-emerald-900/10 shadow-xs">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        {/* ── BAGIAN 1 (KIRI - 7 KOLOM): FORMULIR SETORAN SAMPAH ── */}
+        <div className="lg:col-span-7 bg-white rounded-2xl p-5 sm:p-6 border border-emerald-950/10 shadow-xs space-y-5">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="font-bold text-lg sm:text-xl text-emerald-950 tracking-tight leading-snug">
+              Formulir Setoran Sampah
+            </h3>
+            <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80">
+              Setoran Baru
+            </span>
+          </div>
+
+          {/* 1A. Pilih Lokasi Drop Point */}
+          <div className="space-y-2 relative">
+            <div className="text-xs font-semibold text-emerald-950 flex items-center gap-1.5">
+              <IconMapPin className="w-4 h-4 text-emerald-700 flex-shrink-0" />
+              <span>Pilih Lokasi Drop Point</span>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-800 leading-snug">{item.nama || item.name || item.id}</p>
-              <p className="text-xs text-slate-500 font-normal mt-0.5">{item.poinPerKg} Poin/kg · Reduksi {item.emisiPerKg} kg CO₂/kg</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min="0"
-                step="0.5"
-                placeholder="0"
-                value={weights[item.id] || ''}
-                onChange={(e) => handleWeightChange(item.id, parseFloat(e.target.value) || 0)}
-                className="w-20 px-3 py-2 rounded-xl text-xs font-semibold text-right bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+
+            <button
+              type="button"
+              onClick={() => setIsDropdownOpen((prev) => !prev)}
+              className="w-full text-left bg-emerald-50/40 hover:bg-emerald-50/80 border border-emerald-600/25 rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-2 transition-colors"
+            >
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
+                <span className="text-xs sm:text-sm font-bold text-emerald-950 truncate">
+                  {selectedDropPoint.name}
+                </span>
+                <span className="text-[11px] text-slate-500 font-medium">
+                  · {selectedDropPoint.distance} · Buka {selectedDropPoint.hours}
+                </span>
+                {selectedDropPoint.id === nearbyDropPoints[0].id && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    Terdekat
+                  </span>
+                )}
+              </div>
+              <IconChevronDown
+                className={`w-4 h-4 text-emerald-700 flex-shrink-0 transition-transform duration-200 ${
+                  isDropdownOpen ? 'rotate-180' : ''
+                }`}
               />
-              <span className="text-xs font-medium text-slate-500 w-5">kg</span>
+            </button>
+
+            {isDropdownOpen && (
+              <div className="absolute left-0 right-0 z-20 mt-1 bg-white rounded-xl border border-emerald-900/15 shadow-lg overflow-hidden divide-y divide-slate-100">
+                {nearbyDropPoints.map((dp, idx) => {
+                  const isSelected = dp.id === selectedDropPoint.id;
+                  return (
+                    <button
+                      key={dp.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedDropPointId(dp.id);
+                        setIsDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3.5 py-2.5 flex items-center justify-between gap-2 transition-colors ${
+                        isSelected ? 'bg-emerald-50/80' : 'hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-800">{dp.name}</span>
+                          {idx === 0 && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800">
+                              Terdekat
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          {dp.address} · {dp.distance} · Buka {dp.hours}
+                        </p>
+                      </div>
+                      {isSelected && <IconCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 1B. Pilih Jenis & Berat Sampah */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs font-semibold text-emerald-950 flex items-center gap-1.5">
+                <IconRecycle className="w-4 h-4 text-emerald-700 flex-shrink-0" />
+                <span>Pilih Jenis &amp; Berat Sampah</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleResetWeights}
+                disabled={totalWeight === 0}
+                className={`text-xs font-semibold transition-colors ${
+                  totalWeight > 0
+                    ? 'text-emerald-700 hover:text-emerald-900 cursor-pointer'
+                    : 'text-slate-300 cursor-not-allowed'
+                }`}
+              >
+                Reset
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              {wasteTypes.map((item: WasteItem) => {
+                const weight = weights[item.id] ?? 0;
+                const isActive = weight > 0;
+                const iconStyle =
+                  wasteIconStyles[item.id] || 'bg-emerald-50 text-emerald-700 border-emerald-200/70';
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`flex items-center justify-between gap-3 p-3 sm:p-3.5 rounded-[15px] transition-all ${
+                      isActive
+                        ? 'bg-emerald-50/50 border border-emerald-600/40'
+                        : 'bg-slate-50/60 border border-slate-200/80 hover:border-emerald-300/70 hover:bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className={`w-10 h-10 rounded-xl border flex items-center justify-center flex-shrink-0 ${iconStyle}`}
+                      >
+                        <WasteIcon id={item.id} className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs sm:text-sm font-bold text-slate-800 truncate leading-snug">
+                          {item.nama || item.name || item.id}
+                        </p>
+                        <p className="text-[11px] text-slate-500 font-normal mt-0.5 tabular-nums">
+                          {item.poinPerKg} Pts/kg · {item.emisiPerKg} kg CO₂
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Stepper Controls */}
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleStepWeight(item.id, -0.5)}
+                        disabled={weight <= 0}
+                        aria-label={`Kurangi berat ${item.nama || item.id}`}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold transition-colors border ${
+                          weight > 0
+                            ? 'bg-emerald-100/80 hover:bg-emerald-200/80 text-emerald-900 border-emerald-200'
+                            : 'bg-white text-slate-300 border-slate-200/80 cursor-not-allowed'
+                        }`}
+                      >
+                        −
+                      </button>
+
+                      <div
+                        className={`flex items-center justify-center bg-white border rounded-lg h-8 px-2.5 gap-1 ${
+                          isActive ? 'border-emerald-500/40' : 'border-slate-200'
+                        }`}
+                      >
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={weight === 0 ? '0.0' : String(weight)}
+                          onChange={(e) => {
+                            const cleaned = e.target.value.replace(',', '.');
+                            const parsed = parseFloat(cleaned);
+                            handleWeightChange(item.id, Number.isNaN(parsed) ? 0 : Math.max(0, parsed));
+                          }}
+                          className={`!w-9 !p-0 !m-0 !border-0 !bg-transparent !shadow-none !rounded-none text-center text-xs font-bold focus:outline-none tabular-nums ${
+                            isActive ? 'text-emerald-950' : 'text-slate-400'
+                          }`}
+                        />
+                        <span
+                          className={`text-[11px] font-medium select-none ${
+                            isActive ? 'text-emerald-700' : 'text-slate-400'
+                          }`}
+                        >
+                          kg
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleStepWeight(item.id, 0.5)}
+                        aria-label={`Tambah berat ${item.nama || item.id}`}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold bg-emerald-100/80 hover:bg-emerald-200/80 text-emerald-900 border border-emerald-200 transition-colors"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-        ))}
-      </div>
+        </div>
 
-      {/* 2. Photo Upload Section with Real Camera */}
-      <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-wider text-emerald-800 flex items-center gap-2">
-          <span>2. Bukti Foto Setoran Sampah</span>
-        </label>
+        {/* ── KOLOM KANAN (5 KOLOM): BUKTI FOTO & RINGKASAN SETORAN ── */}
+        <div className="lg:col-span-5 space-y-5 lg:sticky lg:top-6">
+          {/* BAGIAN 2: Bukti Foto Setoran Sampah */}
+          <div className="bg-white rounded-2xl p-5 sm:p-6 border border-emerald-950/10 shadow-xs space-y-4">
+            <div>
+              <h4 className="font-bold text-base text-emerald-950 tracking-tight leading-snug">
+                Bukti Foto Setoran Sampah
+              </h4>
+              <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                Sertakan foto dokumentasi sampah untuk mempercepat verifikasi
+              </p>
+            </div>
 
-        <div className="relative rounded-2xl overflow-hidden border-2 border-dashed border-emerald-300 bg-emerald-50/30 transition-colors">
-          {photoPreview ? (
-            <div className="relative">
-              <img src={photoPreview} alt="Bukti setoran" className="w-full h-52 object-cover" />
-              <div className="absolute inset-0 flex items-end justify-between p-3.5 bg-gradient-to-t from-black/70 via-transparent to-transparent">
-                <span className="text-white text-xs font-medium truncate max-w-[70%]">{photoName}</span>
-                <button
-                  type="button"
-                  onClick={() => { setPhotoPreview(null); setPhotoName(''); }}
-                  className="p-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors shadow"
-                  title="Hapus foto"
-                >
-                  <IconX className="w-4 h-4" />
-                </button>
+            <div className="relative rounded-2xl overflow-hidden border-2 border-dashed border-emerald-600/60 bg-emerald-50/30 transition-colors">
+              {photoPreview ? (
+                <div className="relative">
+                  <img src={photoPreview} alt="Bukti setoran" className="w-full h-44 object-cover" />
+                  <div className="absolute inset-0 flex items-end justify-between p-3 bg-gradient-to-t from-black/70 via-transparent to-transparent">
+                    <span className="text-white text-xs font-medium truncate max-w-[75%]">{photoName}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPhotoPreview(null);
+                        setPhotoName('');
+                      }}
+                      className="p-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors shadow"
+                      title="Hapus foto"
+                    >
+                      <IconX className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-6 px-4 text-center">
+                  <div className="inline-flex flex-col items-center gap-2">
+                    <div className="p-2.5 rounded-xl bg-emerald-100/80 text-emerald-700">
+                      <IconCamera className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">Dokumentasikan Bukti Sampah</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Ambil foto langsung dengan kamera atau unggah dari galeri/file
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons: Galeri & Ambil Foto */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 transition-all border border-slate-200 shadow-2xs"
+              >
+                <IconUpload className="w-4 h-4 text-slate-600" />
+                <span>Galeri</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsCameraOpen(true)}
+                className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold bg-[#165b41] hover:bg-[#1f7353] text-white transition-all shadow-xs"
+              >
+                <IconCamera className="w-4 h-4" />
+                <span>Ambil Foto</span>
+              </button>
+            </div>
+
+            <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+
+            <LiveCameraModal
+              isOpen={isCameraOpen}
+              onClose={() => setIsCameraOpen(false)}
+              onCapture={handleCameraCapture}
+            />
+          </div>
+
+          {/* BAGIAN 3: Ringkasan Setoran */}
+          <div
+            className="rounded-[15px] p-5 sm:p-6 text-white shadow-sm space-y-5 border border-emerald-700/30"
+            style={{
+              background: 'linear-gradient(135deg, #165b41 0%, #1b694b 55%, #1f7353 100%)',
+            }}
+          >
+            <div>
+              <h4 className="font-bold text-base text-white tracking-tight leading-snug">
+                Ringkasan Setoran
+              </h4>
+              <p className="text-[11px] text-emerald-100/80 mt-0.5">
+                Estimasi perolehan setoran Anda
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <IconStar className="w-5 h-5 text-emerald-200 flex-shrink-0" />
+                  <span className="text-3xl sm:text-4xl font-extrabold text-emerald-200 tracking-tight tabular-nums">
+                    +{totals.totalPoin} Pts
+                  </span>
+                </div>
+                <p className="text-[11px] text-emerald-100/80 mt-1">
+                  Estimasi Poin Reward
+                </p>
+              </div>
+
+              <div className="flex flex-col items-end gap-2">
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/12 border border-white/15 text-emerald-50 tabular-nums whitespace-nowrap">
+                  {totalWeight.toFixed(1)} kg Total
+                </span>
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/12 border border-white/15 text-emerald-50 tabular-nums whitespace-nowrap">
+                  {totals.totalEmisi.toFixed(2)} kg CO₂
+                </span>
               </div>
             </div>
-          ) : (
-            <div className="p-7 text-center">
-              <div className="inline-flex flex-col items-center gap-2.5">
-                <div className="p-3.5 rounded-2xl bg-emerald-100 text-emerald-700">
-                  <IconCamera className="w-7 h-7" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-800">Dokumentasikan Bukti Sampah</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Ambil foto langsung dengan kamera atau unggah dari galeri/file</p>
-                </div>
-              </div>
-            </div>
-          )}
+
+            <button
+              type="button"
+              onClick={handleTriggerSave}
+              disabled={totals.totalPoin === 0}
+              className={`w-full py-3.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                totals.totalPoin > 0
+                  ? 'bg-emerald-300 hover:bg-emerald-200 text-emerald-950 shadow-sm active:scale-[0.99]'
+                  : 'bg-white/15 text-white/45 cursor-not-allowed'
+              }`}
+            >
+              <span>Ajukan Setoran Sampah</span>
+              <IconArrowRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        {/* Action Buttons: Explicit Separation between Upload and Direct Camera */}
-        <div className="flex gap-3 pt-1">
-          {/* Button 1: File Picker */}
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all border border-slate-200"
-          >
-            <IconUpload className="w-4 h-4" />
-            Upload File Galeri
-          </button>
-
-          {/* Button 2: Real Live Camera */}
-          <button
-            type="button"
-            onClick={() => setIsCameraOpen(true)}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-sm"
-          >
-            <IconCamera className="w-4 h-4" />
-            Ambil Foto Langsung
-          </button>
-        </div>
-
-        <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
-
-        {/* Live Camera Viewfinder Modal */}
-        <LiveCameraModal
-          isOpen={isCameraOpen}
-          onClose={() => setIsCameraOpen(false)}
-          onCapture={handleCameraCapture}
-        />
       </div>
-
-      {/* Summary Box */}
-      <div className="grid grid-cols-2 gap-3 p-4 rounded-xl bg-emerald-50/70 border border-emerald-200">
-        <div>
-          <p className="text-[11px] font-semibold text-slate-600">Estimasi Poin Reward</p>
-          <p className="text-xl font-extrabold text-emerald-700 mt-0.5">+{totals.totalPoin} Poin</p>
-        </div>
-        <div className="text-right">
-          <p className="text-[11px] font-semibold text-slate-600">Reduksi Emisi Karbon</p>
-          <p className="text-xl font-extrabold text-sky-700 mt-0.5">{totals.totalEmisi.toFixed(2)} kg CO₂</p>
-        </div>
-      </div>
-
-      {/* Submit Button */}
-      <button
-        onClick={handleTriggerSave}
-        disabled={totals.totalPoin === 0}
-        className="w-full py-3.5 rounded-xl text-sm font-extrabold transition-all shadow-md"
-        style={totals.totalPoin > 0
-          ? { background: 'linear-gradient(135deg, #16a34a, #15803d)', color: 'white' }
-          : { background: '#e2e8f0', color: '#94a3b8', cursor: 'not-allowed' }
-        }
-      >
-        {totals.totalPoin > 0 ? `Simpan & Kirim Setoran (+${totals.totalPoin} Pts)` : 'Masukkan berat sampah terlebih dahulu'}
-      </button>
     </div>
   );
 }
