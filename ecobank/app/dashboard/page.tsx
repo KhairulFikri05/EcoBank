@@ -299,6 +299,43 @@ function WasteIcon({ id, className = "w-5 h-5" }: { id: string; className?: stri
   );
 }
 
+function IconNavigation({ className = "w-3 h-3" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+    </svg>
+  );
+}
+
+function RewardIcon({ id, className = "w-5 h-5" }: { id: string; className?: string }) {
+  if (id === 'rew-1') {
+    return (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+      </svg>
+    );
+  }
+  if (id === 'rew-2') {
+    return (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+      </svg>
+    );
+  }
+  if (id === 'rew-3') {
+    return (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M13 10V3L4 14h7v7l9-11h-7z" />
+      </svg>
+    );
+  }
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21V11m0-7a4 4 0 00-4 4v3h8V8a4 4 0 00-4-4z" />
+    </svg>
+  );
+}
+
 // ─── Education Articles ───────────────────────────────────────────────────────
 const educationArticles = [
   {
@@ -359,10 +396,10 @@ const educationArticles = [
 
 // ─── Popular Rewards Catalog ──────────────────────────────────────────────────
 const availableRewards: RewardItem[] = [
-  { id: 'rew-1', title: 'Voucher GoPay Rp 10.000', category: 'e-Wallet', points: 100, provider: 'GoPay', iconBg: '#00aa13' },
-  { id: 'rew-2', title: 'Pulsa Seluler Rp 25.000', category: 'Telekomunikasi', points: 240, provider: 'Telkomsel', iconBg: '#e11932' },
-  { id: 'rew-3', title: 'Token Listrik PLN Rp 20.000', category: 'Utilitas', points: 200, provider: 'PLN', iconBg: '#0284c7' },
-  { id: 'rew-4', title: 'Adopsi Bibit Pohon Mangrove', category: 'Penghijauan', points: 150, provider: 'EcoGreen Foundation', iconBg: '#16a34a' },
+  { id: 'rew-1', title: 'Voucher GoPay Rp 10.000', category: 'e-Wallet · Instan', points: 100, provider: 'GoPay', iconBg: '#00aa13' },
+  { id: 'rew-2', title: 'Pulsa Seluler Rp 25.000', category: 'e-Wallet · Instan', points: 240, provider: 'Telkomsel', iconBg: '#e11932' },
+  { id: 'rew-3', title: 'Token Listrik PLN Rp 20.000', category: 'Utilitas · Instan', points: 200, provider: 'PLN', iconBg: '#0284c7' },
+  { id: 'rew-4', title: 'Adopsi Bibit Pohon Mangrove', category: 'Penghijauan · EcoGreen', points: 150, provider: 'EcoGreen Foundation', iconBg: '#16a34a' },
 ];
 
 // ─── Nearby Drop Points ───────────────────────────────────────────────────────
@@ -830,16 +867,6 @@ export default function DashboardPage() {
               <IconChevronRight className="w-4 h-4 text-emerald-300 opacity-60 group-hover:opacity-100 transition-opacity" />
             </button>
 
-            <div className="flex items-center justify-between px-1">
-              <Link href="/" className="text-xs font-semibold flex items-center gap-1.5 transition-colors text-white/50 hover:text-emerald-200">
-                <span>Beranda Publik</span>
-                <span>↗</span>
-              </Link>
-              <Link href="/" className="text-xs font-semibold flex items-center gap-1 transition-colors text-red-300 hover:text-red-200">
-                <IconLogout className="w-3.5 h-3.5" />
-                <span>Keluar</span>
-              </Link>
-            </div>
           </div>
         </div>
       </aside>
@@ -916,8 +943,8 @@ export default function DashboardPage() {
                 borderColor: 'rgba(52,211,153,0.3)',
               }}
             >
-              <IconStar className="w-3.5 h-3.5 text-amber-400" />
-              <span>{userProfile.level}</span>
+              <IconLogout className="w-3.5 h-3.5" />
+              <span>Keluar</span>
             </span>
           </div>
         </header>
@@ -969,7 +996,7 @@ export default function DashboardPage() {
                       onClick={() => setActiveTab('setor')}
                       className="group inline-flex items-center gap-2.5 font-bold text-xs sm:text-sm px-6 py-3.5 rounded-2xl text-white transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0"
                       style={{
-                        background: 'linear-gradient(135deg, #4ade80 0%, #22c55e 100%)',
+                        background: 'linear-gradient(135deg, #16a34a 0%, #22c55e 100%)',
                         boxShadow: '0 10px 24px rgba(34, 197, 94, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.45)',
                       }}
                     >
@@ -1039,7 +1066,7 @@ export default function DashboardPage() {
                     >
                       <div className="flex items-center justify-between gap-4">
                         <span className="text-xs font-semibold uppercase tracking-wider text-emerald-300">
-                          Target Hijau Bulan Ini
+                          Target Bulan Ini
                         </span>
                         <span className="text-xs font-medium px-2.5 py-0.5 rounded-md bg-emerald-400/20 text-emerald-200 border border-emerald-300/30">
                           {Math.min(100, Math.round((impact.totalKg / 10) * 100))}% Tercapai
@@ -1100,194 +1127,218 @@ export default function DashboardPage() {
         {/* ── WORKSPACE AREA ── */}
         <main className={`flex-1 p-5 md:p-8 w-full mx-auto space-y-6 transition-all duration-300 ${sidebarOpen ? 'max-w-6xl' : 'max-w-7xl'}`}>
 
-          {/* ══════════════════════════════════════
+{/* ══════════════════════════════════════
               TAB 1: BERANDA
           ══════════════════════════════════════ */}
           {activeTab === 'beranda' && (
-            <div className="space-y-6 -mt-3">
+            <div className="space-y-7 pt-1.5">
 
-              {/* 1. Stat Cards Row */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard
-                  label="Sampah Terkumpul"
-                  value={`${impact.totalKg} kg`}
-                  sub="Kontribusi Anda"
-                  icon={<IconWeight className="w-5 h-5" />}
-                  accent="#16a34a"
-                  accentBg="rgba(22,163,74,0.08)"
-                />
-                <StatCard
-                  label="Poin Aktif"
-                  value={`${impact.totalPoin} Pts`}
-                  sub="Saldo reward"
-                  icon={<IconStar className="w-5 h-5" />}
-                  accent="#d97706"
-                  accentBg="rgba(217,119,6,0.08)"
-                />
-                <StatCard
-                  label="CO₂ Dicegah"
-                  value={`${impact.totalEmisi} kg`}
-                  sub="Emisi dihindari"
-                  icon={<IconLeaf className="w-5 h-5" />}
-                  accent="#0284c7"
-                  accentBg="rgba(2,132,199,0.08)"
-                />
-                <StatCard
-                  label="Setoran Berhasil"
-                  value={`${transactions.filter((t) => t.type === 'Setor').length} Kali`}
-                  sub="100% terverifikasi"
-                  icon={<IconCheck className="w-5 h-5" />}
-                  accent="#7c3aed"
-                  accentBg="rgba(124,58,237,0.08)"
-                />
-              </div>
+              {/* 1. Hero Statistic Slider — 4-in-1 Modern Auto Carousel */}
+              <HeroStatSlider
+                impact={impact}
+                setorCount={transactions.filter((t) => t.type === 'Setor').length}
+                onNavigateTab={(tab) => setActiveTab(tab)}
+              />
 
-              {/* 2. Main Grid: Komposisi Sampah & Katalog Penukaran Cepat */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* 2. UNIFIED DASHBOARD ACTIONS WRAPPER (Pembungkus Luar Pemersatu 3 Bagian) */}
+              <div className="rounded-3xl p-5 sm:p-7 bg-[#edf5f0]/70 border border-emerald-900/10 shadow-xs">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
 
-                {/* LEFT: Komposisi Sampah & Drop Point (7 cols) */}
-                <div className="lg:col-span-7 space-y-6">
+                  {/* LEFT: Komposisi Sampah & Drop Point (7 cols) */}
+                  <div className="lg:col-span-7 flex flex-col justify-between gap-5">
 
-                  {/* Komposisi Sampah Saya */}
-                  <div className="bg-white rounded-2xl p-6 border border-emerald-900/10 shadow-sm space-y-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-bold text-base text-slate-900">Komposisi Sampah Anda</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">Rincian sampah yang telah Anda setor ke EcoBank</p>
+                    {/* Komposisi Sampah Anda */}
+                    <div className="bg-white rounded-2xl p-5 sm:p-6 border border-emerald-950/10 shadow-xs space-y-4">
+                      {/* Header: Judul + 7.0 kg total + Setor Baru */}
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <h3 className="font-bold text-base tracking-tight text-emerald-950">
+                            Komposisi Sampah Anda
+                          </h3>
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/80">
+                            {impact.totalKg.toFixed(1)} kg total
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => setActiveTab('setor')}
+                          className="text-xs font-semibold text-emerald-800 hover:text-emerald-950 transition-colors inline-flex items-center gap-1 shrink-0"
+                        >
+                          + Setor Baru <IconChevronRight className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-                      <button
-                        onClick={() => setActiveTab('setor')}
-                        className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
-                      >
-                        + Setor Baru <IconChevronRight className="w-3 h-3" />
-                      </button>
+
+                      {/* 4 Baris Sampah */}
+                      <div className="space-y-3.5 pt-1">
+                        {[
+                          { label: 'Botol Plastik (PET/HDPE)', weight: '3.5 kg', pct: 50, barClass: 'bg-emerald-700', icon: 'plastik' },
+                          { label: 'Kardus & Kertas', weight: '2.0 kg', pct: 29, barClass: 'bg-emerald-600', icon: 'kertas' },
+                          { label: 'Kaleng Logam & Alumunium', weight: '1.0 kg', pct: 14, barClass: 'bg-teal-700', icon: 'logam' },
+                          { label: 'Botol & Pecahan Kaca', weight: '0.5 kg', pct: 7, barClass: 'bg-lime-700', icon: 'kaca' },
+                        ].map((item) => (
+                          <div key={item.label} className="space-y-1.5">
+                            <div className="flex items-center justify-between gap-3 text-xs">
+                              <span className="flex items-center gap-2.5 font-semibold text-slate-800 min-w-0">
+                                <span className="w-7 h-7 rounded-lg bg-emerald-50/90 text-emerald-800 border border-emerald-200/60 flex items-center justify-center shrink-0">
+                                  <WasteIcon id={item.icon} className="w-3.5 h-3.5" />
+                                </span>
+                                <span className="truncate">{item.label}</span>
+                              </span>
+                              <span className="text-slate-600 font-medium tabular-nums shrink-0">
+                                <strong className="font-bold text-slate-900">{item.weight}</strong> · {item.pct}%
+                              </span>
+                            </div>
+                            <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${item.barClass}`}
+                                style={{ width: `${item.pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
-                    <div className="space-y-3.5">
-                      {[
-                        { label: 'Botol Plastik (PET/HDPE)', weight: '3.5 kg', pct: 50, color: '#16a34a', icon: 'plastik' },
-                        { label: 'Kardus & Kertas', weight: '2.0 kg', pct: 29, color: '#0284c7', icon: 'kertas' },
-                        { label: 'Kaleng Logam & Alumunium', weight: '1.0 kg', pct: 14, color: '#d97706', icon: 'logam' },
-                        { label: 'Botol & Pecahan Kaca', weight: '0.5 kg', pct: 7, color: '#8b5cf6', icon: 'kaca' },
-                      ].map((item) => (
-                        <div key={item.label} className="p-3 rounded-xl bg-slate-50/70 border border-slate-200/60 space-y-1.5">
-                          <div className="flex items-center justify-between text-xs font-semibold">
-                            <span className="flex items-center gap-2 text-slate-800">
-                              <span className="p-1 rounded bg-white border border-slate-200 text-emerald-600">
-                                <WasteIcon id={item.icon} className="w-3.5 h-3.5" />
-                              </span>
-                              {item.label}
+                    {/* Lokasi Drop Point Terdekat */}
+                    <div className="bg-white rounded-2xl p-5 sm:p-6 border border-emerald-950/10 shadow-xs space-y-3.5">
+                      {/* Header */}
+                      <div className="flex items-center justify-between gap-3">
+                        <h3 className="font-bold text-base tracking-tight text-emerald-950">
+                          Lokasi Drop Point Terdekat
+                        </h3>
+                        <span className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                          <IconMapPin className="w-4 h-4" />
+                        </span>
+                      </div>
+
+                      {/* 2 Lokasi Vertikal Berjenjang */}
+                      <div className="space-y-3">
+                        {/* 1. Terdekat (Highlighted) */}
+                        <div className="rounded-xl p-3.5 bg-emerald-50/40 border-2 border-emerald-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors">
+                          <div className="flex items-start sm:items-center gap-3 min-w-0">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-100 text-emerald-900 border border-emerald-300/80 shrink-0">
+                              <IconNavigation className="w-3 h-3 text-emerald-700" />
+                              0.8 km · Terdekat
                             </span>
-                            <span className="text-slate-700">{item.weight} ({item.pct}%)</span>
-                          </div>
-                          <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
-                            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${item.pct}%`, background: item.color }} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Drop Point Terdekat */}
-                  <div className="bg-white rounded-2xl p-6 border border-emerald-900/10 shadow-sm space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-bold text-base text-slate-900">Lokasi Drop Point Terdekat</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">Mitra Bank Sampah resmi di area sekitar Anda</p>
-                      </div>
-                      <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-                        <IconMapPin className="w-4 h-4" />
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {nearbyDropPoints.map((dp) => (
-                        <div key={dp.id} className="p-4 rounded-xl bg-emerald-50/40 border border-emerald-100 flex flex-col justify-between space-y-2">
-                          <div>
-                            <div className="flex items-center justify-between text-[11px] font-bold text-emerald-700 mb-1">
-                              <span className="inline-flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                {dp.status}
-                              </span>
-                              <span>{dp.distance}</span>
-                            </div>
-                            <h4 className="text-xs font-bold text-slate-900 leading-tight">{dp.name}</h4>
-                            <p className="text-[10px] text-slate-500 mt-0.5">{dp.address}</p>
-                          </div>
-                          <div className="pt-2 border-t border-emerald-100/70 flex items-center justify-between text-[10px] text-slate-600">
-                            <span>Jam: {dp.hours}</span>
-                            <span className="font-bold text-emerald-700 cursor-pointer hover:underline">Petunjuk Arah →</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* RIGHT: Penukaran Reward & Riwayat Cepat (5 cols) */}
-                <div className="lg:col-span-5 space-y-6">
-
-                  {/* Penukaran Reward Populer */}
-                  <div className="bg-white rounded-2xl p-6 border border-emerald-900/10 shadow-sm space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-bold text-base text-slate-900">Tukar Poin Cepat</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">Saldo Anda: <strong className="text-amber-600">{impact.totalPoin} Pts</strong></p>
-                      </div>
-                      <span className="p-2 rounded-xl bg-amber-50 text-amber-600">
-                        <IconGift className="w-4 h-4" />
-                      </span>
-                    </div>
-
-                    <div className="space-y-3">
-                      {availableRewards.map((rew) => {
-                        const canAfford = impact.totalPoin >= rew.points;
-                        return (
-                          <div key={rew.id} className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-center justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold text-slate-800 truncate">{rew.title}</p>
-                              <p className="text-[10px] text-slate-500">{rew.category} · {rew.provider}</p>
-                              <span className="inline-block text-[11px] font-extrabold text-amber-600 mt-0.5">
-                                {rew.points} Pts
+                            <div className="min-w-0">
+                              <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">Bank Sampah Syiah Kuala</h4>
+                              <p className="text-[11px] text-slate-500 truncate">Jl. Teuku Nyak Arief No. 42</p>
+                              <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-600 mt-0.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block" />
+                                Buka · 08:00 - 16:00
                               </span>
                             </div>
-                            <button
-                              onClick={() => handleRedeemReward(rew)}
-                              disabled={!canAfford}
-                              className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex-shrink-0"
-                              style={canAfford
-                                ? { background: '#16a34a', color: 'white' }
-                                : { background: '#e2e8f0', color: '#94a3b8', cursor: 'not-allowed' }
-                              }
-                            >
-                              {canAfford ? 'Tukar' : 'Kurang'}
-                            </button>
                           </div>
-                        );
-                      })}
+                          <button className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#135431] hover:bg-[#0e4025] text-white shadow-xs flex items-center justify-center gap-1 shrink-0 whitespace-nowrap active:scale-95 transition-all">
+                            Petunjuk Rute →
+                          </button>
+                        </div>
+
+                        {/* 2. Ulee Kareng */}
+                        <div className="rounded-xl p-3.5 bg-white border border-slate-200/90 hover:border-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors">
+                          <div className="flex items-start sm:items-center gap-3 min-w-0">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium text-slate-600 bg-slate-50 border border-slate-200 shrink-0">
+                              <IconNavigation className="w-3 h-3 text-slate-400" />
+                              1.6 km
+                            </span>
+                            <div className="min-w-0">
+                              <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">Bank Sampah Ulee Kareng</h4>
+                              <p className="text-[11px] text-slate-500 truncate">Jl. Lamreung No. 18</p>
+                              <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-600 mt-0.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block" />
+                                Buka · 09:00 - 17:00
+                              </span>
+                            </div>
+                          </div>
+                          <button className="px-3.5 py-1.5 rounded-xl text-xs font-medium border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-1 shrink-0 whitespace-nowrap active:scale-95 transition-all">
+                            Rute →
+                          </button>
+                        </div>
+                      </div>
                     </div>
+
                   </div>
 
-                  {/* Riwayat Transaksi Ringkas */}
-                  <div className="bg-white rounded-2xl p-6 border border-emerald-900/10 shadow-sm space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-bold text-base text-slate-900">Aktivitas Terkini</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">Setoran dan penukaran terbaru</p>
+                  {/* RIGHT: Tukar Poin Cepat (5 cols) */}
+                  <div className="lg:col-span-5 h-full">
+                    <div id="section-tukar-poin" className="bg-white rounded-2xl p-5 sm:p-6 border border-emerald-950/10 shadow-xs space-y-4 scroll-mt-24 h-full flex flex-col justify-between">
+                      <div className="space-y-3.5">
+                        {/* Header: title + 200 Pts */}
+                        <div className="flex items-center justify-between gap-3 pb-1">
+                          <h3 className="font-bold text-base tracking-tight text-emerald-950">
+                            Tukar Poin Cepat
+                          </h3>
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-amber-900 bg-amber-50 border border-amber-200/80 shadow-xs tabular-nums">
+                            <IconStar className="w-3.5 h-3.5 text-amber-500" />
+                            {impact.totalPoin} Pts
+                          </span>
+                        </div>
+
+                        {/* 4 Green Reward Cards */}
+                        <div className="space-y-2.5">
+                          {availableRewards.map((rew) => {
+                            const canAfford = impact.totalPoin >= rew.points;
+                            const deficit = Math.max(0, rew.points - impact.totalPoin);
+                            return (
+                              <div
+                                key={rew.id}
+                                className={`rounded-2xl p-3.5 sm:p-4 text-white flex items-center justify-between gap-3 shadow-xs transition-all ${
+                                  canAfford
+                                    ? 'bg-[#155a36] hover:bg-[#124f2f]'
+                                    : 'bg-[#185334]/85 opacity-90'
+                                }`}
+                              >
+                                {/* Left icon */}
+                                <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center shrink-0 text-white">
+                                  <RewardIcon id={rew.id} className="w-5 h-5" />
+                                </div>
+
+                                {/* Middle: Title, Category, Points */}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs sm:text-sm font-bold text-white truncate leading-snug">
+                                    {rew.title}
+                                  </p>
+                                  <p className="text-[11px] text-emerald-200/80 truncate mt-0.5">
+                                    {rew.category}
+                                  </p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-xs font-bold text-emerald-300 tabular-nums">
+                                      {rew.points} Pts
+                                    </span>
+                                    {!canAfford && (
+                                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/25 text-amber-200 border border-amber-300/40 tabular-nums">
+                                        (kurang {deficit} Pts)
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Right button */}
+                                {canAfford ? (
+                                  <button
+                                    onClick={() => handleRedeemReward(rew)}
+                                    className="px-4 py-1.5 rounded-full text-xs font-bold bg-emerald-400 hover:bg-emerald-300 text-slate-950 transition-all hover:scale-105 active:scale-95 shrink-0 shadow-xs"
+                                  >
+                                    Tukar
+                                  </button>
+                                ) : (
+                                  <button
+                                    disabled
+                                    className="px-4 py-1.5 rounded-full text-xs font-semibold bg-white/15 text-white/50 cursor-not-allowed shrink-0"
+                                  >
+                                    Kurang
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <button
-                        onClick={() => setActiveTab('riwayat')}
-                        className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
-                      >
-                        Semua <IconChevronRight className="w-3 h-3" />
-                      </button>
                     </div>
-                    <TransactionList transactions={transactions} limit={3} />
                   </div>
 
                 </div>
-
               </div>
+
             </div>
           )}
 
@@ -1582,23 +1633,249 @@ export default function DashboardPage() {
   );
 }
 
-// ─── Stat Card Component ──────────────────────────────────────────────────────
-function StatCard({ label, value, sub, icon, accent, accentBg }: {
-  label: string; value: string; sub: string;
-  icon: React.ReactNode; accent: string; accentBg: string;
+// ─── Hero Stat Slider Component (4-in-1 Modern Auto Slider) ───────────────────
+function HeroStatSlider({
+  impact,
+  setorCount,
+  onNavigateTab,
+}: {
+  impact: Impact;
+  setorCount: number;
+  onNavigateTab: (tab: TabId) => void;
 }) {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  const SLIDE_DURATION = 4800;
+
+  const slides = [
+    {
+      id: 'sampah',
+      label: 'Sampah Terkumpul',
+      value: `${impact.totalKg}`,
+      unit: 'kg',
+      sub: 'Total pilahan tercatat',
+      headline: 'Pilah Sampah, Pulihkan Lingkungan',
+      description: 'Setiap kilogram sampah kering yang Anda kumpulkan langsung didistribusikan ke fasilitas daur ulang sirkular mitra bank sampah.',
+      badge: 'Target Tercapai 70%',
+      icon: <IconWeight className="w-4 h-4" />,
+      accent: '#34d399',
+      image: '/images/maskot_ecobank3.png',
+      imageAlt: 'Maskot EcoBank Pilah Sampah',
+      gradient: 'linear-gradient(135deg, #07381f 0%, #0d4a2b 50%, #16653b 100%)',
+      ctaText: 'Setor Sampah Sekarang',
+      ctaAction: () => onNavigateTab('setor'),
+    },
+    {
+      id: 'poin',
+      label: 'Poin Aktif',
+      value: `${impact.totalPoin}`,
+      unit: 'Pts',
+      sub: 'Siap ditukar reward',
+      headline: 'Reward Nyata dari Setiap Pilahan',
+      description: 'Kumpulkan poin reward dari setiap transaksi dan tukarkan dengan voucher belanja, saldo digital e-wallet, pulsa, atau sembako.',
+      badge: 'Saldo Siap Ditukar',
+      icon: <IconStar className="w-4 h-4" />,
+      accent: '#fbbf24',
+      image: '/images/maskot_ecobank5.png',
+      imageAlt: 'Maskot EcoBank Poin Reward',
+      gradient: 'linear-gradient(135deg, #0b3d26 0%, #145533 50%, #1e6c40 100%)',
+      ctaText: 'Tukar Reward Poin',
+      ctaAction: () => {
+        const el = document.getElementById('section-tukar-poin');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      },
+    },
+    {
+      id: 'emisi',
+      label: 'CO₂ Dicegah',
+      value: `${impact.totalEmisi}`,
+      unit: 'kg',
+      sub: 'Estimasi reduksi karbon',
+      headline: 'Pangkas Jejak Karbon dari Rumah',
+      description: 'Aksi pemilahan sampah mandiri berhasil mencegah pelepasan gas rumah kaca dan menghemat energi manufaktur bahan baku baru.',
+      badge: 'Dampak Iklim Nyata',
+      icon: <IconLeaf className="w-4 h-4" />,
+      accent: '#2dd4bf',
+      image: '/images/maskot_ecobank4.png',
+      imageAlt: 'Maskot EcoBank Lindungi Bumi',
+      gradient: 'linear-gradient(135deg, #053327 0%, #0c4d38 50%, #146147 100%)',
+      ctaText: 'Pelajari Edukasi Sampah',
+      ctaAction: () => onNavigateTab('edukasi'),
+    },
+    {
+      id: 'setoran',
+      label: 'Setoran Berhasil',
+      value: `${setorCount}`,
+      unit: 'Kali',
+      sub: 'Terverifikasi drop point',
+      headline: 'Konsistensi Aksi Nyata Lestari',
+      description: 'Seluruh riwayat setoran Anda telah diperiksa dan diverifikasi langsung oleh petugas drop point mitra bank sampah resmi.',
+      badge: 'Nasabah Terverifikasi',
+      icon: <IconCheck className="w-4 h-4" />,
+      accent: '#4ade80',
+      image: '/images/maskot_ecobank2.png',
+      imageAlt: 'Maskot EcoBank Setoran Berhasil',
+      gradient: 'linear-gradient(135deg, #04381e 0%, #094a28 50%, #106337 100%)',
+      ctaText: 'Lihat Riwayat Transaksi',
+      ctaAction: () => onNavigateTab('riwayat'),
+    },
+  ];
+
+  // Auto-play timer
+  useEffect(() => {
+    if (isPaused) return;
+
+    const timer = setInterval(() => {
+      setCurrentSlide((curr) => (curr + 1) % slides.length);
+    }, SLIDE_DURATION);
+
+    return () => clearInterval(timer);
+  }, [isPaused, slides.length]);
+
+  const handleSelectSlide = (idx: number) => {
+    setCurrentSlide(idx);
+  };
+
+  const handlePrev = () => {
+    setCurrentSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
+  };
+
+  const handleNext = () => {
+    setCurrentSlide((prev) => (prev + 1) % slides.length);
+  };
+
+  const active = slides[currentSlide];
+
   return (
-    <div className="bg-white rounded-2xl p-5 sm:p-6 border border-emerald-900/10 shadow-sm flex items-start justify-between">
-      <div>
-        <p className="text-xs font-medium text-slate-500 tracking-normal">{label}</p>
-        <p className="text-2xl sm:text-[26px] font-bold text-slate-800 mt-1.5 tracking-tight leading-none">{value}</p>
-        <p className="text-xs text-slate-400 mt-2 flex items-center gap-1 font-normal">
-          <IconTrend className="w-3.5 h-3.5" />
-          <span>{sub}</span>
-        </p>
-      </div>
-      <div className="p-3 rounded-2xl flex-shrink-0" style={{ background: accentBg, color: accent }}>
-        {icon}
+    <div
+      className="relative z-20 overflow-hidden rounded-3xl text-white shadow-xl border border-emerald-500/20 transition-all duration-500"
+      style={{ background: active.gradient }}
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      {/* Ambient Lighting & Pattern Overlay */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-40"
+        style={{
+          backgroundImage: `
+            radial-gradient(circle at 15% 30%, rgba(110, 231, 183, 0.25) 0%, transparent 50%),
+            radial-gradient(circle at 85% 70%, rgba(52, 211, 153, 0.2) 0%, transparent 55%)
+          `,
+        }}
+      />
+
+      <div className="relative z-10 p-6 sm:p-8 space-y-5">
+
+        {/* ── Top Bar: 4 Dots Indicators + Controls ── */}
+        <div className="flex items-center justify-between gap-4">
+          {/* 4 Interactive Dots Indicator */}
+          <div className="flex items-center gap-1.5" aria-label="Indikator slide">
+            {slides.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleSelectSlide(idx)}
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  idx === currentSlide
+                    ? 'w-7 bg-emerald-300 shadow-xs shadow-emerald-300/50'
+                    : 'w-2 bg-white/30 hover:bg-white/50'
+                }`}
+                aria-label={`Pindah ke slide ${idx + 1}`}
+                title={`Slide ${idx + 1}: ${slides[idx].label}`}
+              />
+            ))}
+          </div>
+
+          {/* Right: Slide Number + Arrows */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono font-medium text-emerald-200/80 mr-1 tabular-nums">
+              0{currentSlide + 1} / 0{slides.length}
+            </span>
+            <button
+              onClick={handlePrev}
+              className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white flex items-center justify-center border border-white/15 transition-all"
+              title="Slide Sebelumnya"
+              aria-label="Slide Sebelumnya"
+            >
+              <IconChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleNext}
+              className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white flex items-center justify-center border border-white/15 transition-all"
+              title="Slide Berikutnya"
+              aria-label="Slide Berikutnya"
+            >
+              <IconChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Main Slide Content: Hero Grid with Fixed Heights ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center min-h-[250px] sm:min-h-[260px]">
+          
+          {/* Left Column: Metric & Descriptions (Stabil, No Layout Shift) */}
+          <div className="lg:col-span-7 flex flex-col justify-between min-h-[230px] sm:min-h-[245px] space-y-3.5">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-white/10 text-emerald-200 border border-white/20 backdrop-blur-md">
+                <span style={{ color: active.accent }}>{active.icon}</span>
+                <span>{active.badge}</span>
+              </div>
+
+              {/* Giant Metric Display with clean Middle Dot separator */}
+              <div className="flex items-baseline gap-3 flex-wrap">
+                <span className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white tabular-nums">
+                  {active.value}
+                </span>
+                <span className="text-2xl sm:text-3xl font-bold text-emerald-300">
+                  {active.unit}
+                </span>
+                <span className="hidden sm:inline-flex items-center gap-2 text-xs font-medium text-emerald-100/90 ml-1">
+                  <span className="text-emerald-300/70 font-bold text-base leading-none">·</span>
+                  <span>{active.sub}</span>
+                </span>
+              </div>
+
+              {/* Headline & Description with Uniform Heights */}
+              <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-snug line-clamp-1 min-h-[28px] flex items-center">
+                {active.headline}
+              </h3>
+              <p className="text-xs sm:text-sm text-emerald-100/85 leading-relaxed max-w-xl font-normal min-h-[42px] flex items-center">
+                {active.description}
+              </p>
+            </div>
+
+            {/* Call to Action Button */}
+            <div className="pt-1">
+              <button
+                onClick={active.ctaAction}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-xs bg-emerald-950/60 hover:bg-emerald-950/80 border border-emerald-400/30 text-white shadow-sm transition-all hover:scale-[1.02] active:scale-95"
+              >
+                <span>{active.ctaText}</span>
+                <IconChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Right Column: Enlarged Floating Mascot Illustration */}
+          <div className="lg:col-span-5 flex items-center justify-center lg:justify-end">
+            <div className="relative w-48 h-48 sm:w-56 sm:h-56 lg:w-64 lg:h-64 flex-shrink-0 anim-mascot">
+              <div
+                className="absolute inset-0 rounded-full blur-3xl opacity-35 pointer-events-none"
+                style={{ background: active.accent }}
+              />
+              <Image
+                src={active.image}
+                alt={active.imageAlt}
+                fill
+                sizes="(max-width: 768px) 192px, (max-width: 1024px) 224px, 256px"
+                className="object-contain drop-shadow-2xl"
+                priority
+              />
+            </div>
+          </div>
+
+        </div>
+
       </div>
     </div>
   );
