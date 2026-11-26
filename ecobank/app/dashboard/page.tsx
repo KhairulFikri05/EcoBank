@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useWaste } from '@/hooks/useWaste';
@@ -360,10 +360,10 @@ const educationArticles = [
 
 // ─── Popular Rewards Catalog ──────────────────────────────────────────────────
 const availableRewards: RewardItem[] = [
-  { id: 'rew-1', title: 'Voucher GoPay Rp 10.000', category: 'e-Wallet', points: 100, provider: 'GoPay', iconBg: '#00aa13' },
-  { id: 'rew-2', title: 'Pulsa Seluler Rp 25.000', category: 'Telekomunikasi', points: 240, provider: 'Telkomsel', iconBg: '#e11932' },
-  { id: 'rew-3', title: 'Token Listrik PLN Rp 20.000', category: 'Utilitas', points: 200, provider: 'PLN', iconBg: '#0284c7' },
-  { id: 'rew-4', title: 'Adopsi Bibit Pohon Mangrove', category: 'Penghijauan', points: 150, provider: 'EcoGreen Foundation', iconBg: '#16a34a' },
+  { id: 'rew-1', title: 'Voucher GoPay Rp 10.000', category: 'e-Wallet · Instan', points: 100, provider: 'GoPay', iconBg: '#00aa13' },
+  { id: 'rew-2', title: 'Pulsa Seluler Rp 25.000', category: 'e-Wallet · Instan', points: 240, provider: 'Telkomsel', iconBg: '#e11932' },
+  { id: 'rew-3', title: 'Token Listrik PLN Rp 20.000', category: 'Utilitas · Instan', points: 200, provider: 'PLN', iconBg: '#0284c7' },
+  { id: 'rew-4', title: 'Adopsi Bibit Pohon Mangrove', category: 'Penghijauan · EcoGreen', points: 150, provider: 'EcoGreen Foundation', iconBg: '#16a34a' },
 ];
 
 // ─── Dynamic Time Greeting Function ───────────────────────────────────────────
@@ -375,173 +375,6 @@ function getDynamicGreeting() {
   return 'Selamat Malam';
 }
 
-// ─── Live Camera Modal Component ──────────────────────────────────────────────
-function LiveCameraModal({
-  isOpen,
-  onClose,
-  onCapture,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  onCapture: (dataUrl: string, filename: string) => void;
-}) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [cameraError, setCameraError] = useState<string>('');
-  const [isCapturing, setIsCapturing] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (!isOpen) {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-        setStream(null);
-      }
-      setCameraError('');
-      return;
-    }
-
-    let activeStream: MediaStream | null = null;
-    async function startCamera() {
-      try {
-        setCameraError('');
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: 'environment',
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
-          audio: false,
-        });
-        activeStream = mediaStream;
-        setStream(mediaStream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
-          videoRef.current.play().catch(() => {});
-        }
-      } catch (err) {
-        console.warn('Camera access error:', err);
-        setCameraError('Kamera tidak dapat diakses atau izin kamera ditolak oleh browser. Anda dapat mengunggah foto secara manual lewat tombol "Upload File".');
-      }
-    }
-
-    startCamera();
-
-    return () => {
-      if (activeStream) {
-        activeStream.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [isOpen]);
-
-  const handleTakeSnapshot = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    setIsCapturing(true);
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const width = video.videoWidth || 640;
-    const height = video.videoHeight || 480;
-
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.drawImage(video, 0, 0, width, height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
-      const filename = `foto-setoran-${Date.now().toString().slice(-4)}.jpg`;
-
-      setTimeout(() => {
-        onCapture(dataUrl, filename);
-        setIsCapturing(false);
-        onClose();
-      }, 200);
-    }
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-lg bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-emerald-500/30 text-white flex flex-col">
-        {/* Modal Header */}
-        <div className="p-4 px-6 flex items-center justify-between border-b border-white/10 bg-slate-900/80">
-          <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
-            <h4 className="text-sm font-bold text-white tracking-wide">Kamera Pengambilan Bukti Sampah</h4>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition-colors"
-          >
-            <IconX className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Video Viewfinder */}
-        <div className="relative bg-black aspect-[4/3] flex items-center justify-center overflow-hidden">
-          {cameraError ? (
-            <div className="p-6 text-center max-w-sm space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-300 flex items-center justify-center mx-auto border border-amber-400/30">
-                <IconCamera className="w-6 h-6" />
-              </div>
-              <p className="text-xs text-slate-300 leading-relaxed">{cameraError}</p>
-              <button
-                onClick={onClose}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 text-white transition-colors"
-              >
-                Kembali ke Form Setoran
-              </button>
-            </div>
-          ) : (
-            <>
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className={`w-full h-full object-cover transition-opacity duration-200 ${isCapturing ? 'opacity-40' : 'opacity-100'}`}
-              />
-              {/* Focus Crosshair Guide */}
-              <div className="absolute inset-8 border border-white/25 rounded-2xl pointer-events-none flex items-center justify-center">
-                <div className="w-10 h-10 border-t-2 border-l-2 border-emerald-400 absolute top-0 left-0 rounded-tl-lg" />
-                <div className="w-10 h-10 border-t-2 border-r-2 border-emerald-400 absolute top-0 right-0 rounded-tr-lg" />
-                <div className="w-10 h-10 border-b-2 border-l-2 border-emerald-400 absolute bottom-0 left-0 rounded-bl-lg" />
-                <div className="w-10 h-10 border-b-2 border-r-2 border-emerald-400 absolute bottom-0 right-0 rounded-br-lg" />
-                <p className="text-[11px] font-semibold text-white/70 bg-black/40 px-3 py-1 rounded-full backdrop-blur-md">
-                  Posisikan sampah di dalam bingkai
-                </p>
-              </div>
-            </>
-          )}
-          <canvas ref={canvasRef} className="hidden" />
-        </div>
-
-        {/* Shutter Controls */}
-        {!cameraError && (
-          <div className="p-4 px-6 bg-slate-950 flex items-center justify-between">
-            <span className="text-[11px] text-slate-400">Live Camera feed</span>
-            <button
-              type="button"
-              onClick={handleTakeSnapshot}
-              className="flex items-center gap-2 px-6 py-3 rounded-full text-xs font-extrabold bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-slate-950 shadow-lg shadow-emerald-500/30 transition-all hover:scale-105 active:scale-95"
-            >
-              <span className="w-3.5 h-3.5 rounded-full bg-slate-950/80 inline-block animate-pulse" />
-              <span>Jepret Foto Sekarang</span>
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-xs font-semibold text-slate-400 hover:text-white transition-colors"
-            >
-              Batal
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ─── Main Page Component ──────────────────────────────────────────────────────
 export default function DashboardPage() {
@@ -613,9 +446,47 @@ export default function DashboardPage() {
   };
 
   const [transactions, setTransactions] = useState<Transaction[]>([
-    { id: '1', type: 'Setor', description: 'Botol Plastik (2.0 kg)', amount: 100, date: '12 Okt 2026' },
-    { id: '2', type: 'Tukar', description: 'Voucher e-Wallet GoPay Rp 10.000', amount: -50, date: '10 Okt 2026' },
-    { id: '3', type: 'Setor', description: 'Kardus & Kertas Bekas (5.0 kg)', amount: 150, date: '08 Okt 2026' },
+    {
+      id: '1',
+      trxCode: '#TRX-2026-1012',
+      type: 'Setor',
+      description: 'Botol Plastik (2.0 kg)',
+      amount: 100,
+      date: '12 Okt 2026',
+      monthGroup: 'OKTOBER 2026',
+      dropPoint: 'Bank Sampah Syiah Kuala',
+      status: 'Terverifikasi',
+      photoUrl: '/images/plastik.jpeg',
+      emisi: 3.0,
+      weight: 2.0,
+      wasteDetail: '2.0 kg Botol Plastik',
+    },
+    {
+      id: '2',
+      trxCode: '#TRX-2026-1010',
+      type: 'Tukar',
+      description: 'Voucher e-Wallet GoPay Rp 10.000',
+      amount: -50,
+      date: '10 Okt 2026',
+      monthGroup: 'OKTOBER 2026',
+      dropPoint: 'Penukaran Instan',
+      status: 'Berhasil',
+    },
+    {
+      id: '3',
+      trxCode: '#TRX-2026-1008',
+      type: 'Setor',
+      description: 'Kardus & Kertas Bekas (5.0 kg)',
+      amount: 150,
+      date: '08 Okt 2026',
+      monthGroup: 'OKTOBER 2026',
+      dropPoint: 'Bank Sampah Ulee Kareng',
+      status: 'Terverifikasi',
+      photoUrl: '/images/kertas.jpeg',
+      emisi: 4.0,
+      weight: 5.0,
+      wasteDetail: '5.0 kg Kardus & Kertas',
+    },
   ]);
 
   const [impact, setImpact] = useState<Impact>({
@@ -638,10 +509,14 @@ export default function DashboardPage() {
 
       const newTx: Transaction = {
         id: Date.now().toString(),
+        trxCode: `#TRX-2026-${String(Math.floor(1000 + Math.random() * 9000))}`,
         type: 'Tukar',
         description: reward.title,
         amount: -reward.points,
         date: 'Hari ini',
+        monthGroup: 'NOVEMBER 2026',
+        dropPoint: 'Penukaran Instan',
+        status: 'Berhasil',
       };
       setTransactions((prev) => [newTx, ...prev]);
       alert(`Selamat! Penukaran "${reward.title}" berhasil diproses.`);
@@ -649,6 +524,12 @@ export default function DashboardPage() {
   };
 
   const handleSaveDropoff = async (calculatedData: DropoffPayload) => {
+    const trxCode = `#TRX-2026-${String(Math.floor(1000 + Math.random() * 9000))}`;
+    const dropPointName = calculatedData.dropPoint || 'Bank Sampah Syiah Kuala';
+    const desc = calculatedData.wasteDetail
+      ? `Setoran ${calculatedData.wasteDetail}`
+      : `Setoran Sampah (${(calculatedData.weight || 0).toFixed(1)} kg)`;
+
     try {
       const res = await fetch('/api/dropoff', {
         method: 'POST',
@@ -667,10 +548,18 @@ export default function DashboardPage() {
         alert(`Berhasil! Tiket setoran: ${result.data?.ticketId || 'DROP-OK'} (+${calculatedData.totalPoin} Poin)`);
         const newTx: Transaction = {
           id: Date.now().toString(),
+          trxCode: result.data?.ticketId ? `#${result.data.ticketId}` : trxCode,
           type: 'Setor',
-          description: `Setoran Sampah (${result.data?.ticketId || 'DROP-NEW'})`,
+          description: desc,
           amount: calculatedData.totalPoin,
           date: 'Hari ini',
+          monthGroup: 'NOVEMBER 2026',
+          dropPoint: dropPointName,
+          status: 'Terverifikasi',
+          photoUrl: calculatedData.photoUrl || null,
+          emisi: calculatedData.totalEmisi,
+          weight: calculatedData.weight,
+          wasteDetail: calculatedData.wasteDetail,
         };
         setTransactions((prev) => [newTx, ...prev]);
         setImpact((prev) => ({
@@ -686,10 +575,18 @@ export default function DashboardPage() {
       alert('Setoran berhasil dicatat ke sistem.');
       const newTx: Transaction = {
         id: Date.now().toString(),
+        trxCode,
         type: 'Setor',
-        description: `Setoran Sampah Mandiri`,
+        description: desc,
         amount: calculatedData.totalPoin,
         date: 'Hari ini',
+        monthGroup: 'NOVEMBER 2026',
+        dropPoint: dropPointName,
+        status: 'Menunggu',
+        photoUrl: calculatedData.photoUrl || null,
+        emisi: calculatedData.totalEmisi,
+        weight: calculatedData.weight,
+        wasteDetail: calculatedData.wasteDetail,
       };
       setTransactions((prev) => [newTx, ...prev]);
       setImpact((prev) => ({
@@ -779,7 +676,6 @@ export default function DashboardPage() {
                       ? {
                           background: 'linear-gradient(135deg, rgba(52,211,153,0.22), rgba(16,185,129,0.25))',
                           color: '#6ee7b7',
-                          borderLeft: '4px solid #34d399',
                           boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                           fontWeight: 600,
                         }
@@ -825,16 +721,6 @@ export default function DashboardPage() {
               <IconChevronRight className="w-4 h-4 text-emerald-300 opacity-60 group-hover:opacity-100 transition-opacity" />
             </button>
 
-            <div className="flex items-center justify-between px-1">
-              <Link href="/" className="text-xs font-semibold flex items-center gap-1.5 transition-colors text-white/50 hover:text-emerald-200">
-                <span>Beranda Publik</span>
-                <span>↗</span>
-              </Link>
-              <Link href="/" className="text-xs font-semibold flex items-center gap-1 transition-colors text-red-300 hover:text-red-200">
-                <IconLogout className="w-3.5 h-3.5" />
-                <span>Keluar</span>
-              </Link>
-            </div>
           </div>
         </div>
       </aside>
@@ -911,8 +797,8 @@ export default function DashboardPage() {
                 borderColor: 'rgba(52,211,153,0.3)',
               }}
             >
-              <IconStar className="w-3.5 h-3.5 text-amber-400" />
-              <span>{userProfile.level}</span>
+              <IconLogout className="w-3.5 h-3.5" />
+              <span>Keluar</span>
             </span>
           </div>
         </header>
@@ -964,7 +850,7 @@ export default function DashboardPage() {
                       onClick={() => setActiveTab('setor')}
                       className="group inline-flex items-center gap-2.5 font-bold text-xs sm:text-sm px-6 py-3.5 rounded-2xl text-white transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0"
                       style={{
-                        background: 'linear-gradient(135deg, #4ade80 0%, #22c55e 100%)',
+                        background: 'linear-gradient(135deg, #16a34a 0%, #22c55e 100%)',
                         boxShadow: '0 10px 24px rgba(34, 197, 94, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.45)',
                       }}
                     >
@@ -1034,7 +920,7 @@ export default function DashboardPage() {
                     >
                       <div className="flex items-center justify-between gap-4">
                         <span className="text-xs font-semibold uppercase tracking-wider text-emerald-300">
-                          Target Hijau Bulan Ini
+                          Target Bulan Ini
                         </span>
                         <span className="text-xs font-medium px-2.5 py-0.5 rounded-md bg-emerald-400/20 text-emerald-200 border border-emerald-300/30">
                           {Math.min(100, Math.round((impact.totalKg / 10) * 100))}% Tercapai
@@ -1075,10 +961,15 @@ export default function DashboardPage() {
             </div>
           )}
 
+          {/* Spacer halus untuk tab selain Beranda agar wave pembatas selaras dengan header */}
+          {activeTab !== 'beranda' && (
+            <div className="h-4 sm:h-6" />
+          )}
+
           {/* ── GELOMBANG HALUS / WAVE DIVIDER DENGAN TRANSISI LEMBUT ── */}
           <div className="w-full overflow-hidden leading-none pointer-events-none">
             <svg
-              className="relative block w-full h-8 sm:h-12 md:h-16"
+              className={`relative block w-full ${activeTab === 'beranda' ? 'h-8 sm:h-12 md:h-16' : 'h-7 sm:h-9 md:h-11'}`}
               viewBox="0 0 1440 90"
               preserveAspectRatio="none"
               fill="none"
@@ -1095,93 +986,76 @@ export default function DashboardPage() {
         {/* ── WORKSPACE AREA ── */}
         <main className={`flex-1 p-5 md:p-8 w-full mx-auto space-y-6 transition-all duration-300 ${sidebarOpen ? 'max-w-6xl' : 'max-w-7xl'}`}>
 
-          {/* ══════════════════════════════════════
+{/* ══════════════════════════════════════
               TAB 1: BERANDA
           ══════════════════════════════════════ */}
           {activeTab === 'beranda' && (
-            <div className="space-y-6 -mt-3">
+            <div className="space-y-7 pt-1.5">
 
-              {/* 1. Stat Cards Row */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard
-                  label="Sampah Terkumpul"
-                  value={`${impact.totalKg} kg`}
-                  sub="Kontribusi Anda"
-                  icon={<IconWeight className="w-5 h-5" />}
-                  accent="#16a34a"
-                  accentBg="rgba(22,163,74,0.08)"
-                />
-                <StatCard
-                  label="Poin Aktif"
-                  value={`${impact.totalPoin} Pts`}
-                  sub="Saldo reward"
-                  icon={<IconStar className="w-5 h-5" />}
-                  accent="#d97706"
-                  accentBg="rgba(217,119,6,0.08)"
-                />
-                <StatCard
-                  label="CO₂ Dicegah"
-                  value={`${impact.totalEmisi} kg`}
-                  sub="Emisi dihindari"
-                  icon={<IconLeaf className="w-5 h-5" />}
-                  accent="#0284c7"
-                  accentBg="rgba(2,132,199,0.08)"
-                />
-                <StatCard
-                  label="Setoran Berhasil"
-                  value={`${transactions.filter((t) => t.type === 'Setor').length} Kali`}
-                  sub="100% terverifikasi"
-                  icon={<IconCheck className="w-5 h-5" />}
-                  accent="#7c3aed"
-                  accentBg="rgba(124,58,237,0.08)"
-                />
-              </div>
+              {/* 1. Hero Statistic Slider — 4-in-1 Modern Auto Carousel */}
+              <HeroStatSlider
+                impact={impact}
+                setorCount={transactions.filter((t) => t.type === 'Setor').length}
+                onNavigateTab={(tab) => setActiveTab(tab)}
+              />
 
-              {/* 2. Main Grid: Komposisi Sampah & Katalog Penukaran Cepat */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* 2. UNIFIED DASHBOARD ACTIONS WRAPPER (Pembungkus Luar Pemersatu 3 Bagian) */}
+              <div className="rounded-3xl p-5 sm:p-7 bg-[#edf5f0]/70 border border-emerald-900/10 shadow-xs">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
 
-                {/* LEFT: Komposisi Sampah & Drop Point (7 cols) */}
-                <div className="lg:col-span-7 space-y-6">
+                  {/* LEFT: Komposisi Sampah & Drop Point (7 cols) */}
+                  <div className="lg:col-span-7 flex flex-col justify-between gap-5">
 
-                  {/* Komposisi Sampah Saya */}
-                  <div className="bg-white rounded-2xl p-6 border border-emerald-900/10 shadow-sm space-y-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-bold text-base text-slate-900">Komposisi Sampah Anda</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">Rincian sampah yang telah Anda setor ke EcoBank</p>
-                      </div>
-                      <button
-                        onClick={() => setActiveTab('setor')}
-                        className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
-                      >
-                        + Setor Baru <IconChevronRight className="w-3 h-3" />
-                      </button>
-                    </div>
-
-                    <div className="space-y-3.5">
-                      {[
-                        { label: 'Botol Plastik (PET/HDPE)', weight: '3.5 kg', pct: 50, color: '#16a34a', icon: 'plastik' },
-                        { label: 'Kardus & Kertas', weight: '2.0 kg', pct: 29, color: '#0284c7', icon: 'kertas' },
-                        { label: 'Kaleng Logam & Alumunium', weight: '1.0 kg', pct: 14, color: '#d97706', icon: 'logam' },
-                        { label: 'Botol & Pecahan Kaca', weight: '0.5 kg', pct: 7, color: '#8b5cf6', icon: 'kaca' },
-                      ].map((item) => (
-                        <div key={item.label} className="p-3 rounded-xl bg-slate-50/70 border border-slate-200/60 space-y-1.5">
-                          <div className="flex items-center justify-between text-xs font-semibold">
-                            <span className="flex items-center gap-2 text-slate-800">
-                              <span className="p-1 rounded bg-white border border-slate-200 text-emerald-600">
-                                <WasteIcon id={item.icon} className="w-3.5 h-3.5" />
-                              </span>
-                              {item.label}
-                            </span>
-                            <span className="text-slate-700">{item.weight} ({item.pct}%)</span>
-                          </div>
-                          <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
-                            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${item.pct}%`, background: item.color }} />
-                          </div>
+                    {/* Komposisi Sampah Anda */}
+                    <div className="bg-white rounded-2xl p-5 sm:p-6 border border-emerald-950/10 shadow-xs space-y-4">
+                      {/* Header: Judul + 7.0 kg total + Setor Baru */}
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                          <h3 className="font-bold text-base tracking-tight text-emerald-950">
+                            Komposisi Sampah Anda
+                          </h3>
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/80">
+                            {impact.totalKg.toFixed(1)} kg total
+                          </span>
                         </div>
-                      ))}
+                        <button
+                          onClick={() => setActiveTab('setor')}
+                          className="text-xs font-semibold text-emerald-800 hover:text-emerald-950 transition-colors inline-flex items-center gap-1 shrink-0"
+                        >
+                          + Setor Baru <IconChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* 4 Baris Sampah */}
+                      <div className="space-y-3.5 pt-1">
+                        {[
+                          { label: 'Botol Plastik (PET/HDPE)', weight: '3.5 kg', pct: 50, barClass: 'bg-emerald-700', icon: 'plastik' },
+                          { label: 'Kardus & Kertas', weight: '2.0 kg', pct: 29, barClass: 'bg-emerald-600', icon: 'kertas' },
+                          { label: 'Kaleng Logam & Alumunium', weight: '1.0 kg', pct: 14, barClass: 'bg-teal-700', icon: 'logam' },
+                          { label: 'Botol & Pecahan Kaca', weight: '0.5 kg', pct: 7, barClass: 'bg-lime-700', icon: 'kaca' },
+                        ].map((item) => (
+                          <div key={item.label} className="space-y-1.5">
+                            <div className="flex items-center justify-between gap-3 text-xs">
+                              <span className="flex items-center gap-2.5 font-semibold text-slate-800 min-w-0">
+                                <span className="w-7 h-7 rounded-lg bg-emerald-50/90 text-emerald-800 border border-emerald-200/60 flex items-center justify-center shrink-0">
+                                  <WasteIcon id={item.icon} className="w-3.5 h-3.5" />
+                                </span>
+                                <span className="truncate">{item.label}</span>
+                              </span>
+                              <span className="text-slate-600 font-medium tabular-nums shrink-0">
+                                <strong className="font-bold text-slate-900">{item.weight}</strong> · {item.pct}%
+                              </span>
+                            </div>
+                            <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${item.barClass}`}
+                                style={{ width: `${item.pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
 
                   {/* Lokasi mitra */}
                   <div className="bg-white rounded-2xl p-6 border border-emerald-900/10 shadow-sm space-y-4">
@@ -1190,10 +1064,6 @@ export default function DashboardPage() {
                         <h3 className="font-bold text-base text-slate-900">Lokasi mitra bank sampah</h3>
                         <p className="text-sm text-slate-600 mt-0.5">Pilih unit untuk melihat alamat, jadwal, dan rute Google Maps.</p>
                       </div>
-                      <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-                        <IconMapPin className="w-4 h-4" />
-                      </span>
-                    </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {mitraLocations.map((dp) => (
@@ -1251,55 +1121,112 @@ export default function DashboardPage() {
                       </span>
                     </div>
 
-                    <div className="space-y-3">
-                      {availableRewards.map((rew) => {
-                        const canAfford = impact.totalPoin >= rew.points;
-                        return (
-                          <div key={rew.id} className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/60 flex items-center justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold text-slate-800 truncate">{rew.title}</p>
-                              <p className="text-[10px] text-slate-500">{rew.category} · {rew.provider}</p>
-                              <span className="inline-block text-[11px] font-extrabold text-amber-600 mt-0.5">
-                                {rew.points} Pts
+                        {/* 2. Ulee Kareng */}
+                        <div className="rounded-xl p-3.5 bg-white border border-slate-200/90 hover:border-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors">
+                          <div className="flex items-start sm:items-center gap-3 min-w-0">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium text-slate-600 bg-slate-50 border border-slate-200 shrink-0">
+                              <IconNavigation className="w-3 h-3 text-slate-400" />
+                              1.6 km
+                            </span>
+                            <div className="min-w-0">
+                              <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">Bank Sampah Ulee Kareng</h4>
+                              <p className="text-[11px] text-slate-500 truncate">Jl. Lamreung No. 18</p>
+                              <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-600 mt-0.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block" />
+                                Buka · 09:00 - 17:00
                               </span>
                             </div>
-                            <button
-                              onClick={() => handleRedeemReward(rew)}
-                              disabled={!canAfford}
-                              className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex-shrink-0"
-                              style={canAfford
-                                ? { background: '#16a34a', color: 'white' }
-                                : { background: '#e2e8f0', color: '#94a3b8', cursor: 'not-allowed' }
-                              }
-                            >
-                              {canAfford ? 'Tukar' : 'Kurang'}
-                            </button>
                           </div>
-                        );
-                      })}
+                          <button className="px-3.5 py-1.5 rounded-xl text-xs font-medium border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-1 shrink-0 whitespace-nowrap active:scale-95 transition-all">
+                            Rute →
+                          </button>
+                        </div>
+                      </div>
                     </div>
+
                   </div>
 
-                  {/* Riwayat Transaksi Ringkas */}
-                  <div className="bg-white rounded-2xl p-6 border border-emerald-900/10 shadow-sm space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-bold text-base text-slate-900">Aktivitas Terkini</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">Setoran dan penukaran terbaru</p>
+                  {/* RIGHT: Tukar Poin Cepat (5 cols) */}
+                  <div className="lg:col-span-5 h-full">
+                    <div id="section-tukar-poin" className="bg-white rounded-2xl p-5 sm:p-6 border border-emerald-950/10 shadow-xs space-y-4 scroll-mt-24 h-full flex flex-col justify-between">
+                      <div className="space-y-3.5">
+                        {/* Header: title + 200 Pts */}
+                        <div className="flex items-center justify-between gap-3 pb-1">
+                          <h3 className="font-bold text-base tracking-tight text-emerald-950">
+                            Tukar Poin Cepat
+                          </h3>
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-amber-900 bg-amber-50 border border-amber-200/80 shadow-xs tabular-nums">
+                            <IconStar className="w-3.5 h-3.5 text-amber-500" />
+                            {impact.totalPoin} Pts
+                          </span>
+                        </div>
+
+                        {/* 4 Green Reward Cards */}
+                        <div className="space-y-2.5">
+                          {availableRewards.map((rew) => {
+                            const canAfford = impact.totalPoin >= rew.points;
+                            const deficit = Math.max(0, rew.points - impact.totalPoin);
+                            return (
+                              <div
+                                key={rew.id}
+                                className={`rounded-2xl p-3.5 sm:p-4 text-white flex items-center justify-between gap-3 shadow-xs transition-all ${
+                                  canAfford
+                                    ? 'bg-[#155a36] hover:bg-[#124f2f]'
+                                    : 'bg-[#185334]/85 opacity-90'
+                                }`}
+                              >
+                                {/* Left icon */}
+                                <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center shrink-0 text-white">
+                                  <RewardIcon id={rew.id} className="w-5 h-5" />
+                                </div>
+
+                                {/* Middle: Title, Category, Points */}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs sm:text-sm font-bold text-white truncate leading-snug">
+                                    {rew.title}
+                                  </p>
+                                  <p className="text-[11px] text-emerald-200/80 truncate mt-0.5">
+                                    {rew.category}
+                                  </p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-xs font-bold text-emerald-300 tabular-nums">
+                                      {rew.points} Pts
+                                    </span>
+                                    {!canAfford && (
+                                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/25 text-amber-200 border border-amber-300/40 tabular-nums">
+                                        (- {deficit} Pts)
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Right button */}
+                                {canAfford ? (
+                                  <button
+                                    onClick={() => handleRedeemReward(rew)}
+                                    className="px-4 py-1.5 rounded-full text-xs font-bold bg-emerald-400 hover:bg-emerald-300 text-slate-950 transition-all hover:scale-105 active:scale-95 shrink-0 shadow-xs"
+                                  >
+                                    Tukar
+                                  </button>
+                                ) : (
+                                  <button
+                                    disabled
+                                    className="px-4 py-1.5 rounded-full text-xs font-semibold bg-white/15 text-white/50 cursor-not-allowed shrink-0"
+                                  >
+                                    Kurang
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                      <button
-                        onClick={() => setActiveTab('riwayat')}
-                        className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
-                      >
-                        Semua <IconChevronRight className="w-3 h-3" />
-                      </button>
                     </div>
-                    <TransactionList transactions={transactions} limit={3} />
                   </div>
 
                 </div>
-
               </div>
+
             </div>
           )}
 
@@ -1307,16 +1234,8 @@ export default function DashboardPage() {
               TAB 2: SETOR SAMPAH (Kalkulator + Live Kamera)
           ══════════════════════════════════════ */}
           {activeTab === 'setor' && (
-            <div className={`mx-auto transition-all duration-300 ${sidebarOpen ? 'max-w-2xl' : 'max-w-3xl'}`}>
-              <div className="bg-white rounded-3xl p-6 md:p-8 border border-emerald-900/10 shadow-sm space-y-6">
-                <div>
-                  <h3 className="font-bold text-xl text-slate-900 leading-snug">Formulir Setoran Sampah</h3>
-                  <p className="text-xs text-slate-500 mt-1.5 leading-relaxed font-normal">
-                    Hitung perolehan poin dari berat sampah dan sertakan foto dokumentasi setoran untuk verifikasi mitra.
-                  </p>
-                </div>
-                <CalculatorSection onSave={handleSaveDropoff} />
-              </div>
+            <div className="w-full pt-1">
+              <CalculatorSection onSave={handleSaveDropoff} />
             </div>
           )}
 
@@ -1324,17 +1243,8 @@ export default function DashboardPage() {
               TAB 3: RIWAYAT TRANSAKSI
           ══════════════════════════════════════ */}
           {activeTab === 'riwayat' && (
-            <div className="bg-white rounded-2xl p-6 md:p-8 border border-emerald-900/10 shadow-sm space-y-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-lg text-slate-900">Riwayat Seluruh Transaksi</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Daftar lengkap aktivitas setoran sampah dan penukaran saldo reward</p>
-                </div>
-                <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  {transactions.length} Catatan
-                </span>
-              </div>
-              <TransactionList transactions={transactions} />
+            <div className="w-full pt-1">
+              <RiwayatTransaksiSection transactions={transactions} />
             </div>
           )}
 
@@ -1342,78 +1252,11 @@ export default function DashboardPage() {
               TAB 4: EDUKASI SAMPAH
           ══════════════════════════════════════ */}
           {activeTab === 'edukasi' && (
-            <div className="space-y-6">
-              <div
-                className="rounded-3xl p-7 sm:p-8 text-white relative overflow-hidden shadow-lg"
-                style={{ background: 'linear-gradient(135deg, #104929 0%, #176439 60%, #1f7d49 100%)' }}
-              >
-                <div className="flex items-center justify-between gap-6">
-                  <div className="flex items-start gap-4">
-                    <div className="p-3.5 rounded-2xl bg-white/15 text-emerald-200 border border-white/20 flex-shrink-0">
-                      <IconBook className="w-7 h-7" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <h3 className="font-bold text-lg sm:text-xl text-white leading-snug">Panduan Pengelolaan Sampah Bijak</h3>
-                      <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed font-normal max-w-2xl">
-                        Mulai dari rumah Anda! Pelajari cara pemilahan yang tepat, klasifikasi kode plastik, serta bagaimana limbah diubah menjadi nilai sirkular nyata.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="relative w-24 h-24 sm:w-28 sm:h-28 flex-shrink-0 hidden md:block">
-                    <Image
-                      src="/images/maskot_ecobank4.png"
-                      alt="Maskot Edukasi EcoBank"
-                      fill
-                      className="object-contain drop-shadow-lg"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {educationArticles.map((article) => (
-                  <div
-                    key={article.id}
-                    className="bg-white rounded-2xl overflow-hidden border border-emerald-900/10 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
-                  >
-                    <div className="p-6 space-y-3.5">
-                      <div className="flex items-center justify-between">
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                          {article.category}
-                        </span>
-                        <span className="text-xs text-slate-400 font-normal">{article.readTime}</span>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        <span className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 flex-shrink-0">
-                          {article.icon}
-                        </span>
-                        <h4 className="font-semibold text-sm sm:text-base text-slate-800 leading-snug">{article.title}</h4>
-                      </div>
-                      <p className="text-xs text-slate-500 leading-relaxed font-normal">{article.excerpt}</p>
-
-                      {expandedArticle === article.id && (
-                        <div className="pt-2 p-4 rounded-xl bg-emerald-50/70 text-xs text-slate-700 whitespace-pre-line leading-relaxed border border-emerald-100/80 font-normal">
-                          {article.content}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="p-6 pt-0">
-                      <button
-                        onClick={() => setExpandedArticle(expandedArticle === article.id ? null : article.id)}
-                        className="w-full py-2.5 rounded-xl text-xs font-medium transition-all flex items-center justify-center gap-1.5"
-                        style={expandedArticle === article.id
-                          ? { background: '#dcfce7', color: '#15803d', border: '1px solid #86efac' }
-                          : { background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0' }
-                        }
-                      >
-                        {expandedArticle === article.id ? 'Tutup Artikel' : 'Baca Selengkapnya →'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <EdukasiSection
+              onNavigateSetor={() => setActiveTab('setor')}
+              expandedArticle={expandedArticle}
+              setExpandedArticle={setExpandedArticle}
+            />
           )}
 
           {/* ══════════════════════════════════════
@@ -1594,247 +1437,6 @@ export default function DashboardPage() {
 
         </main>
       </div>
-    </div>
-  );
-}
-
-// ─── Stat Card Component ──────────────────────────────────────────────────────
-function StatCard({ label, value, sub, icon, accent, accentBg }: {
-  label: string; value: string; sub: string;
-  icon: React.ReactNode; accent: string; accentBg: string;
-}) {
-  return (
-    <div className="bg-white rounded-2xl p-5 sm:p-6 border border-emerald-900/10 shadow-sm flex items-start justify-between">
-      <div>
-        <p className="text-xs font-medium text-slate-500 tracking-normal">{label}</p>
-        <p className="text-2xl sm:text-[26px] font-bold text-slate-800 mt-1.5 tracking-tight leading-none">{value}</p>
-        <p className="text-xs text-slate-400 mt-2 flex items-center gap-1 font-normal">
-          <IconTrend className="w-3.5 h-3.5" />
-          <span>{sub}</span>
-        </p>
-      </div>
-      <div className="p-3 rounded-2xl flex-shrink-0" style={{ background: accentBg, color: accent }}>
-        {icon}
-      </div>
-    </div>
-  );
-}
-
-// ─── Calculator Section (Tab "Setor Sampah" dengan Live Kamera Nyata) ─────────
-function CalculatorSection({ onSave }: { onSave: (payload: DropoffPayload) => void }) {
-  const { wasteTypes = [] as WasteItem[] } = useWaste() as { wasteTypes?: WasteItem[] };
-  const [weights, setWeights] = useState<Record<string, number>>({});
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [photoName, setPhotoName] = useState<string>('');
-  const [isCameraOpen, setIsCameraOpen] = useState<boolean>(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  const handleWeightChange = (id: string, weight: number) => {
-    setWeights((prev) => ({ ...prev, [id]: weight }));
-  };
-
-  const handleFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setPhotoName(file.name);
-    const reader = new FileReader();
-    reader.onload = (ev) => setPhotoPreview(ev.target?.result as string);
-    reader.readAsDataURL(file);
-  }, []);
-
-  const handleCameraCapture = (dataUrl: string, filename: string) => {
-    setPhotoPreview(dataUrl);
-    setPhotoName(filename);
-  };
-
-  const calculateTotal = () => {
-    let totalPoin = 0;
-    let totalEmisi = 0;
-    const calc = new CalculatorContext(new StandardCalculationStrategy());
-    wasteTypes.forEach((item: WasteItem) => {
-      const w = weights[item.id] ?? 0;
-      if (w > 0) {
-        totalPoin += calc.execute(w, item.poinPerKg);
-        totalEmisi += calc.execute(w, item.emisiPerKg);
-      }
-    });
-    return { totalPoin, totalEmisi };
-  };
-
-  const totals = calculateTotal();
-  const totalWeight = Object.values(weights).reduce<number>((sum, v) => sum + Number(v || 0), 0);
-
-  const handleTriggerSave = () => {
-    if (totals.totalPoin > 0) {
-      onSave({
-        totalPoin: totals.totalPoin,
-        totalEmisi: Number(totals.totalEmisi.toFixed(2)),
-        weight: totalWeight,
-      });
-      setWeights({});
-      setPhotoPreview(null);
-      setPhotoName('');
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* 1. Waste Input List */}
-      <div className="space-y-3">
-        <label className="text-xs font-semibold uppercase tracking-wider text-emerald-800 flex items-center gap-2">
-          <span>1. Pilih Jenis & Masukkan Berat Sampah</span>
-        </label>
-        {wasteTypes.map((item: WasteItem) => (
-          <div key={item.id} className="flex items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl bg-slate-50/80 border border-slate-200/70 hover:border-emerald-200 transition-colors">
-            <div className="p-2.5 rounded-xl bg-white border border-slate-200 text-emerald-600 flex-shrink-0 shadow-xs">
-              <WasteIcon id={item.id} className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-800 leading-snug">{item.nama || item.name || item.id}</p>
-              <p className="text-xs text-slate-500 font-normal mt-0.5">{item.poinPerKg} Poin/kg · Reduksi {item.emisiPerKg} kg CO₂/kg</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min="0"
-                step="0.5"
-                placeholder="0"
-                value={weights[item.id] || ''}
-                onChange={(e) => handleWeightChange(item.id, parseFloat(e.target.value) || 0)}
-                className="w-20 px-3 py-2 rounded-xl text-xs font-semibold text-right bg-white border border-slate-200 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-              <span className="text-xs font-medium text-slate-500 w-5">kg</span>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* 2. Photo Upload Section with Real Camera */}
-      <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-wider text-emerald-800 flex items-center gap-2">
-          <span>2. Bukti Foto Setoran Sampah</span>
-        </label>
-
-        <div className="relative rounded-2xl overflow-hidden border-2 border-dashed border-emerald-300 bg-emerald-50/30 transition-colors">
-          {photoPreview ? (
-            <div className="relative">
-              <img src={photoPreview} alt="Bukti setoran" className="w-full h-52 object-cover" />
-              <div className="absolute inset-0 flex items-end justify-between p-3.5 bg-gradient-to-t from-black/70 via-transparent to-transparent">
-                <span className="text-white text-xs font-medium truncate max-w-[70%]">{photoName}</span>
-                <button
-                  type="button"
-                  onClick={() => { setPhotoPreview(null); setPhotoName(''); }}
-                  className="p-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors shadow"
-                  title="Hapus foto"
-                >
-                  <IconX className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="p-7 text-center">
-              <div className="inline-flex flex-col items-center gap-2.5">
-                <div className="p-3.5 rounded-2xl bg-emerald-100 text-emerald-700">
-                  <IconCamera className="w-7 h-7" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-800">Dokumentasikan Bukti Sampah</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Ambil foto langsung dengan kamera atau unggah dari galeri/file</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Action Buttons: Explicit Separation between Upload and Direct Camera */}
-        <div className="flex gap-3 pt-1">
-          {/* Button 1: File Picker */}
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all border border-slate-200"
-          >
-            <IconUpload className="w-4 h-4" />
-            Upload File Galeri
-          </button>
-
-          {/* Button 2: Real Live Camera */}
-          <button
-            type="button"
-            onClick={() => setIsCameraOpen(true)}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-sm"
-          >
-            <IconCamera className="w-4 h-4" />
-            Ambil Foto Langsung
-          </button>
-        </div>
-
-        <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
-
-        {/* Live Camera Viewfinder Modal */}
-        <LiveCameraModal
-          isOpen={isCameraOpen}
-          onClose={() => setIsCameraOpen(false)}
-          onCapture={handleCameraCapture}
-        />
-      </div>
-
-      {/* Summary Box */}
-      <div className="grid grid-cols-2 gap-3 p-4 rounded-xl bg-emerald-50/70 border border-emerald-200">
-        <div>
-          <p className="text-[11px] font-semibold text-slate-600">Estimasi Poin Reward</p>
-          <p className="text-xl font-extrabold text-emerald-700 mt-0.5">+{totals.totalPoin} Poin</p>
-        </div>
-        <div className="text-right">
-          <p className="text-[11px] font-semibold text-slate-600">Reduksi Emisi Karbon</p>
-          <p className="text-xl font-extrabold text-sky-700 mt-0.5">{totals.totalEmisi.toFixed(2)} kg CO₂</p>
-        </div>
-      </div>
-
-      {/* Submit Button */}
-      <button
-        onClick={handleTriggerSave}
-        disabled={totals.totalPoin === 0}
-        className="w-full py-3.5 rounded-xl text-sm font-extrabold transition-all shadow-md"
-        style={totals.totalPoin > 0
-          ? { background: 'linear-gradient(135deg, #16a34a, #15803d)', color: 'white' }
-          : { background: '#e2e8f0', color: '#94a3b8', cursor: 'not-allowed' }
-        }
-      >
-        {totals.totalPoin > 0 ? `Simpan & Kirim Setoran (+${totals.totalPoin} Pts)` : 'Masukkan berat sampah terlebih dahulu'}
-      </button>
-    </div>
-  );
-}
-
-// ─── Transaction List Component ───────────────────────────────────────────────
-function TransactionList({ transactions, limit }: { transactions: Transaction[]; limit?: number }) {
-  const displayList = limit ? transactions.slice(0, limit) : transactions;
-  if (displayList.length === 0) {
-    return <p className="text-xs text-center py-6 text-slate-400">Belum ada riwayat transaksi</p>;
-  }
-  return (
-    <div className="space-y-2.5">
-      {displayList.map((tx) => (
-        <div key={tx.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50/80 border border-slate-200/60">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={tx.type === 'Setor'
-              ? { background: 'rgba(22,163,74,0.12)', color: '#16a34a' }
-              : { background: 'rgba(217,119,6,0.12)', color: '#d97706' }
-            }
-          >
-            {tx.type === 'Setor' ? <IconCheck className="w-4 h-4" /> : <IconStar className="w-4 h-4" />}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-slate-800 truncate leading-snug">{tx.description}</p>
-            <p className="text-[11px] text-slate-400 font-normal mt-0.5">{tx.date}</p>
-          </div>
-          <span className={`text-xs font-bold flex-shrink-0 ${tx.amount > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-            {tx.amount > 0 ? `+${tx.amount}` : tx.amount} Pts
-          </span>
-        </div>
-      ))}
     </div>
   );
 }
