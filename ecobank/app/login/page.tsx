@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { mitraLocations } from '@/lib/mitraLocations';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -37,7 +38,7 @@ export default function LoginPage() {
             joinDate: 'September 2026',
             level: 'Level 2 · Green Pioneer',
             idNasabah: 'EB-2026-089',
-            dropPointFavorit: 'Bank Sampah Syiah Kuala',
+            dropPointFavorit: mitraLocations[0].name,
             avatarInitial: 'R',
           })
         );
