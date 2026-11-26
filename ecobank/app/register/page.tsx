@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { mitraLocations } from '@/lib/mitraLocations';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -32,7 +33,7 @@ export default function RegisterPage() {
         joinDate: 'Hari Ini',
         level: 'Level 1 · Nasabah Baru',
         idNasabah: `EB-${Date.now().toString().slice(-4)}`,
-        dropPointFavorit: 'Bank Sampah Syiah Kuala',
+        dropPointFavorit: mitraLocations[0].name,
         avatarInitial: form.nama ? form.nama[0].toUpperCase() : 'N',
       })
     );
