@@ -150,7 +150,7 @@ export default function LandingPage() {
                 boxShadow: "0 4px 14px rgba(245,158,11,0.4)",
               }}
             >
-              Daftar Gratis →
+              Daftar Gratis
             </Link>
           </div>
 
@@ -194,7 +194,7 @@ export default function LandingPage() {
                 Masuk
               </Link>
               <Link href="/register" className="text-center text-sm font-bold py-3 rounded-xl text-white" style={{ background: "linear-gradient(135deg,#f59e0b,#d97706)" }}>
-                Daftar Gratis →
+                Daftar Gratis
               </Link>
             </div>
           </div>
