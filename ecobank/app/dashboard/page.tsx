@@ -3,40 +3,360 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import {
-  TabId,
-  Transaction,
-  Impact,
-  DropoffPayload,
-  RewardItem,
-  UserProfile,
-  nearbyDropPoints,
-} from '@/components/dashboard/types';
-import {
-  EcoBankMark,
-  IconHome,
-  IconRecycle,
-  IconHistory,
-  IconBook,
-  IconUser,
-  IconLeaf,
-  IconChevronRight,
-  IconChevronLeft,
-  IconSidebar,
-  IconStar,
-  IconLogout,
-  IconCheck,
-  IconMapPin,
-  IconShield,
-  IconEdit,
-  WasteIcon,
-  IconNavigation,
-  RewardIcon,
-} from '@/components/dashboard/DashboardIcons';
-import { HeroStatSlider } from '@/components/dashboard/HeroStatSlider';
-import { CalculatorSection } from '@/components/dashboard/SetorSampahSection';
-import { RiwayatTransaksiSection } from '@/components/dashboard/RiwayatTransaksiSection';
-import { EdukasiSection } from '@/components/dashboard/EdukasiSection';
+import { useWaste } from '@/hooks/useWaste';
+import { CalculatorContext, StandardCalculationStrategy } from '@/lib/wasteStrategy';
+import { getGoogleMapsDirectionsUrl, mitraLocations } from '@/lib/mitraLocations';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+type TabId = 'beranda' | 'setor' | 'riwayat' | 'edukasi' | 'profil';
+
+type Transaction = {
+  id: string;
+  type: 'Setor' | 'Tukar';
+  description: string;
+  amount: number;
+  date: string;
+};
+
+type Impact = {
+  totalKg: number;
+  totalPoin: number;
+  totalEmisi: number;
+};
+
+type WasteItem = {
+  id: string;
+  nama?: string;
+  name?: string;
+  poinPerKg: number;
+  emisiPerKg: number;
+};
+
+type DropoffPayload = {
+  wasteType?: string;
+  weight?: number;
+  totalPoin: number;
+  totalEmisi: number;
+};
+
+type RewardItem = {
+  id: string;
+  title: string;
+  category: string;
+  points: number;
+  provider: string;
+  iconBg: string;
+};
+
+type UserProfile = {
+  nama: string;
+  email: string;
+  phone: string;
+  address: string;
+  joinDate: string;
+  level: string;
+  idNasabah: string;
+  dropPointFavorit: string;
+  avatarInitial: string;
+};
+
+// ─── SVG Logo Matching Landing Page (EcoBankMark) ─────────────────────────────
+function EcoBankMark({ size = 38 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 48 48"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-label="EcoBank Logo"
+      className="flex-shrink-0"
+    >
+      <defs>
+        <linearGradient id="db-lg1" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#22c55e" />
+          <stop offset="100%" stopColor="#15803d" />
+        </linearGradient>
+        <linearGradient id="db-lg2" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#dcfce7" />
+          <stop offset="100%" stopColor="#bbf7d0" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M24 2 L41.3 11 L41.3 29 L24 38 L6.7 29 L6.7 11 Z"
+        fill="url(#db-lg1)"
+      />
+      <path
+        d="M24 11 C31 14 35 20 32 26 C29 32 22 33 18 29 C14 25 15 17 20 13 C21.5 11.8 23 11 24 11 Z"
+        fill="url(#db-lg2)"
+      />
+      <path
+        d="M24 11 C23 19 21 26 20 32"
+        stroke="#15803d"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <path d="M23 16 C26 14.5 29 15.5 31 18" stroke="#15803d" strokeWidth="1" strokeLinecap="round" fill="none" opacity="0.7" />
+      <path d="M22 21 C25 19.5 29 20.5 31 23" stroke="#15803d" strokeWidth="1" strokeLinecap="round" fill="none" opacity="0.7" />
+      <path
+        d="M20 32 L20 37"
+        stroke="#bbf7d0"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <ellipse cx="20" cy="37" rx="4" ry="1.5" fill="#bbf7d0" opacity="0.6" />
+    </svg>
+  );
+}
+
+// ─── SVG Icons ────────────────────────────────────────────────────────────────
+function IconHome({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+    </svg>
+  );
+}
+function IconRecycle({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+    </svg>
+  );
+}
+function IconHistory({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+function IconBook({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+    </svg>
+  );
+}
+function IconUser({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+    </svg>
+  );
+}
+function IconLeaf({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+    </svg>
+  );
+}
+function IconCamera({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  );
+}
+function IconUpload({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+    </svg>
+  );
+}
+function IconChevronRight({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+    </svg>
+  );
+}
+function IconChevronLeft({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+    </svg>
+  );
+}
+function IconSidebar({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M9 4v16" />
+    </svg>
+  );
+}
+function IconWeight({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+    </svg>
+  );
+}
+function IconStar({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+    </svg>
+  );
+}
+function IconLogout({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+    </svg>
+  );
+}
+function IconMenu({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  );
+}
+function IconX({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  );
+}
+function IconTrend({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+    </svg>
+  );
+}
+function IconCheck({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+    </svg>
+  );
+}
+function IconMapPin({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  );
+}
+function IconGift({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M12 8v13m0-13V4.5a2.5 2.5 0 00-5 0V8h5zm0 0v13m0-13V4.5a2.5 2.5 0 015 0V8h-5zM4 8h16a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1zm1 5h14v7a2 2 0 01-2 2H7a2 2 0 01-2-2v-7z" />
+    </svg>
+  );
+}
+function IconTrash({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    </svg>
+  );
+}
+function IconShield({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    </svg>
+  );
+}
+function IconEdit({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+    </svg>
+  );
+}
+
+// ─── Waste Icon by ID ─────────────────────────────────────────────────────────
+function WasteIcon({ id, className = "w-5 h-5" }: { id: string; className?: string }) {
+  if (id === 'plastik') return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+    </svg>
+  );
+  if (id === 'kertas') return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  );
+  if (id === 'logam') return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M9 3H7a2 2 0 00-2 2v14a2 2 0 002 2h2M9 3h6M9 3v18m6-18h2a2 2 0 012 2v14a2 2 0 01-2 2h-2M15 3v18" />
+    </svg>
+  );
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M21 10.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l2.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+    </svg>
+  );
+}
+
+// ─── Education Articles ───────────────────────────────────────────────────────
+const educationArticles = [
+  {
+    id: 1,
+    title: "Cara Memilah Sampah yang Benar",
+    excerpt: "Pemilahan sampah dari sumbernya adalah kunci keberhasilan daur ulang. Pelajari kategori sampah organik, anorganik, dan B3.",
+    readTime: "4 menit",
+    category: "Dasar",
+    icon: <IconTrash className="w-5 h-5" />,
+    content: "Pemilahan sampah dari sumbernya adalah langkah paling mendasar dalam pengelolaan sampah yang baik. Sampah dibagi menjadi tiga kategori utama:\n\n• Sampah Organik: sisa makanan, daun, ranting — dapat dikompos\n• Sampah Anorganik: plastik, kaca, logam, kertas — dapat didaur ulang\n• Sampah B3 (Bahan Berbahaya & Beracun): baterai, cat, obat-obatan — perlu penanganan khusus\n\nSediakan minimal 3 tempat sampah berbeda di rumah Anda dengan label yang jelas. Biasakan untuk memilah sejak sampah dihasilkan, bukan setelah terkumpul bercampur.",
+  },
+  {
+    id: 2,
+    title: "Jenis Plastik & Cara Daur Ulang",
+    excerpt: "Tidak semua plastik bisa didaur ulang dengan cara yang sama. Kenali kode segitiga di bawah produk plastik Anda.",
+    readTime: "5 menit",
+    category: "Plastik",
+    icon: <WasteIcon id="plastik" className="w-5 h-5" />,
+    content: "Plastik memiliki 7 kode daur ulang berbeda yang tercetak pada produknya:\n\n• Kode 1 (PET): botol minuman, dapat didaur ulang dengan nilai tinggi\n• Kode 2 (HDPE): botol deterjen, susu — mudah didaur ulang\n• Kode 3 (PVC): pipa, kulit sintetis — sulit didaur ulang\n• Kode 4 (LDPE): kantong plastik, kemasan fleksibel\n• Kode 5 (PP): wadah makanan, sedotan — dapat didaur ulang\n• Kode 6 (PS): styrofoam — sulit didaur ulang\n• Kode 7 (Lainnya): campuran, umumnya tidak bisa didaur ulang\n\nEcoBank menerima plastik kode 1, 2, 4, dan 5 dengan nilai poin tertinggi.",
+  },
+  {
+    id: 3,
+    title: "Dampak Sampah pada Lingkungan",
+    excerpt: "Setiap tahun 8 juta ton sampah plastik masuk ke lautan. Pelajari dampak nyata dan apa yang bisa kita lakukan.",
+    readTime: "6 menit",
+    category: "Lingkungan",
+    icon: <IconLeaf className="w-5 h-5" />,
+    content: "Dampak sampah yang tidak terkelola dengan baik sangat masif:\n\n• Pencemaran laut: 8 juta ton plastik masuk ke lautan setiap tahun, mengancam biota laut\n• Emisi gas rumah kaca: sampah organik yang membusuk menghasilkan metana (CH₄), gas 25x lebih kuat dari CO₂\n• Pencemaran tanah: plastik membutuhkan 400-1000 tahun untuk terurai\n• Kesehatan manusia: mikroplastik telah ditemukan dalam darah dan ASI manusia\n\nDengan mendepositkan sampah ke EcoBank, Anda secara langsung mencegah sampah masuk ke TPA dan mengurangi emisi karbon komunitas.",
+  },
+  {
+    id: 4,
+    title: "Tips Zero Waste Rumah Tangga",
+    excerpt: "Kurangi sampah dari sumbernya. Panduan praktis menerapkan gaya hidup minim sampah di rumah sehari-hari.",
+    readTime: "5 menit",
+    category: "Gaya Hidup",
+    icon: <IconHome className="w-5 h-5" />,
+    content: "Zero waste bukan berarti nol sampah, tetapi meminimalkan sampah sebisa mungkin. Mulai dari hal kecil:\n\n• Bawa tas belanja sendiri dan hindari kantong plastik sekali pakai\n• Pilih produk dengan kemasan minimal atau kemasan yang dapat didaur ulang\n• Gunakan wadah/botol minum sendiri saat bepergian\n• Beli bahan makanan secukupnya untuk mengurangi food waste\n• Pilih produk lokal untuk mengurangi jejak karbon transportasi\n• Perbaiki barang yang rusak sebelum membeli baru (repair culture)\n• Gunakan kembali wadah bekas untuk penyimpanan lain\n\nMulai dengan 1-2 perubahan kecil dan tambahkan secara bertahap.",
+  },
+  {
+    id: 5,
+    title: "Ekonomi Sirkular: Sampah jadi Nilai",
+    excerpt: "Bagaimana sampah bisa menjadi sumber daya berharga dalam sistem ekonomi sirkular yang berkelanjutan.",
+    readTime: "7 menit",
+    category: "Ekonomi",
+    icon: <IconRecycle className="w-5 h-5" />,
+    content: "Ekonomi sirkular adalah model ekonomi yang bertujuan menghilangkan limbah dan menjaga sumber daya tetap digunakan selama mungkin.\n\nPrinsip utama:\n• Rancang dengan nol limbah — produk dirancang agar mudah diperbaiki dan didaur ulang\n• Perpanjang siklus hidup produk melalui reuse, repair, dan refurbish\n• Daur ulang sebagai pilihan terakhir — bukan tujuan utama\n\nEcoBank adalah bagian dari ekosistem ekonomi sirkular: sampah Anda menjadi bahan baku industri daur ulang, menghasilkan poin yang bisa ditukar reward nyata, sekaligus mengurangi kebutuhan bahan baku baru yang merusak alam.",
+  },
+  {
+    id: 6,
+    title: "Kompos dari Sampah Organik",
+    excerpt: "Ubah sisa dapur Anda menjadi pupuk alami berkualitas tinggi. Panduan membuat kompos sederhana di rumah.",
+    readTime: "6 menit",
+    category: "Organik",
+    icon: <IconLeaf className="w-5 h-5" />,
+    content: "Komposting adalah proses mengubah bahan organik menjadi pupuk alami melalui aktivitas mikroorganisme.\n\nBahan yang bisa dikompos:\n• Kulit buah dan sayuran, sisa makanan (hindari daging/ikan)\n• Daun kering, potongan rumput, ranting kecil\n• Ampas kopi dan teh, cangkang telur\n\nCara membuat kompos sederhana:\n1. Siapkan wadah atau lubang di tanah\n2. Lapisi dengan tanah atau kompos matang\n3. Tambahkan bahan hijau (sisa makanan) dan coklat (daun kering) bergantian\n4. Jaga kelembaban — tidak terlalu basah atau kering\n5. Aduk setiap 1-2 minggu untuk aerasi\n6. Kompos siap dalam 4-8 minggu\n\nKompos matang berwarna coklat gelap, berbau tanah segar, dan berstruktur remah.",
+  },
+];
 
 // ─── Popular Rewards Catalog ──────────────────────────────────────────────────
 const availableRewards: RewardItem[] = [
@@ -45,7 +365,6 @@ const availableRewards: RewardItem[] = [
   { id: 'rew-3', title: 'Token Listrik PLN Rp 20.000', category: 'Utilitas · Instan', points: 200, provider: 'PLN', iconBg: '#0284c7' },
   { id: 'rew-4', title: 'Adopsi Bibit Pohon Mangrove', category: 'Penghijauan · EcoGreen', points: 150, provider: 'EcoGreen Foundation', iconBg: '#16a34a' },
 ];
-
 
 // ─── Dynamic Time Greeting Function ───────────────────────────────────────────
 function getDynamicGreeting() {
@@ -76,7 +395,7 @@ export default function DashboardPage() {
     joinDate: 'September 2026',
     level: 'Level 2 · Green Pioneer',
     idNasabah: 'EB-2026-089',
-    dropPointFavorit: 'Bank Sampah Syiah Kuala',
+    dropPointFavorit: mitraLocations[0].name,
     avatarInitial: 'R',
   });
 
@@ -738,40 +1057,69 @@ export default function DashboardPage() {
                       </div>
                     </div>
 
-                    {/* Lokasi Drop Point Terdekat */}
-                    <div className="bg-white rounded-2xl p-5 sm:p-6 border border-emerald-950/10 shadow-xs space-y-3.5">
-                      {/* Header */}
-                      <div className="flex items-center justify-between gap-3">
-                        <h3 className="font-bold text-base tracking-tight text-emerald-950">
-                          Lokasi Drop Point Terdekat
-                        </h3>
-                        <span className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
-                          <IconMapPin className="w-4 h-4" />
-                        </span>
+                  {/* Lokasi mitra */}
+                  <div className="bg-white rounded-2xl p-6 border border-emerald-900/10 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-bold text-base text-slate-900">Lokasi mitra bank sampah</h3>
+                        <p className="text-sm text-slate-600 mt-0.5">Pilih unit untuk melihat alamat, jadwal, dan rute Google Maps.</p>
                       </div>
 
-                      {/* 2 Lokasi Vertikal Berjenjang */}
-                      <div className="space-y-3">
-                        {/* 1. Terdekat (Highlighted) */}
-                        <div className="rounded-xl p-3.5 bg-emerald-50/40 border-2 border-emerald-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors">
-                          <div className="flex items-start sm:items-center gap-3 min-w-0">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-100 text-emerald-900 border border-emerald-300/80 shrink-0">
-                              <IconNavigation className="w-3 h-3 text-emerald-700" />
-                              0.8 km · Terdekat
-                            </span>
-                            <div className="min-w-0">
-                              <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate">Bank Sampah Syiah Kuala</h4>
-                              <p className="text-[11px] text-slate-500 truncate">Jl. Teuku Nyak Arief No. 42</p>
-                              <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-600 mt-0.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block" />
-                                Buka · 08:00 - 16:00
-                              </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {mitraLocations.map((dp) => (
+                        <article key={dp.id} className="p-4 rounded-xl bg-emerald-50/40 border border-emerald-100 flex flex-col gap-3">
+                          <div>
+                            <p className="text-xs font-semibold text-emerald-800">{dp.district}</p>
+                            <h4 className="text-base font-bold text-slate-900 leading-snug mt-1">{dp.name}</h4>
+                            <p className="text-sm text-slate-600 mt-1">{dp.address}</p>
+                          </div>
+                          <div className="space-y-2 text-sm text-slate-700">
+                            <p>
+                              <span className="font-semibold">Telepon: </span>
+                              {dp.phone === 'Belum Tersedia' ? dp.phone : (
+                                <a href={`tel:${dp.phone.replace(/[^+\d]/g, '')}`} className="underline underline-offset-2 hover:text-emerald-800">
+                                  {dp.phone}
+                                </a>
+                              )}
+                            </p>
+                            <div>
+                              <p className="font-semibold">Jam operasional</p>
+                              <ul className="mt-1 space-y-1">
+                                {dp.openingHours.map((hours) => <li key={hours}>{hours}</li>)}
+                              </ul>
                             </div>
                           </div>
-                          <button className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#135431] hover:bg-[#0e4025] text-white shadow-xs flex items-center justify-center gap-1 shrink-0 whitespace-nowrap active:scale-95 transition-all">
-                            Petunjuk Rute →
-                          </button>
-                        </div>
+                          <a
+                            href={getGoogleMapsDirectionsUrl(dp)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 transition-colors"
+                          >
+                            Petunjuk arah di Google Maps
+                          </a>
+                        </article>
+                      ))}
+                    </div>
+                    <p className="rounded-lg bg-amber-50 border border-amber-100 p-3 text-sm text-amber-900">
+                      Sebelum membawa setoran, konfirmasikan jadwal dan jenis material yang diterima kepada pengelola unit.
+                    </p>
+                  </div>
+                </div>
+
+                {/* RIGHT: Penukaran Reward & Riwayat Cepat (5 cols) */}
+                <div className="lg:col-span-5 space-y-6">
+
+                  {/* Penukaran Reward Populer */}
+                  <div className="bg-white rounded-2xl p-6 border border-emerald-900/10 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-bold text-base text-slate-900">Tukar Poin Cepat</h3>
+                        <p className="text-xs text-slate-500 mt-0.5">Saldo Anda: <strong className="text-amber-600">{impact.totalPoin} Pts</strong></p>
+                      </div>
+                      <span className="p-2 rounded-xl bg-amber-50 text-amber-600">
+                        <IconGift className="w-4 h-4" />
+                      </span>
+                    </div>
 
                         {/* 2. Ulee Kareng */}
                         <div className="rounded-xl p-3.5 bg-white border border-slate-200/90 hover:border-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors">
@@ -1028,10 +1376,14 @@ export default function DashboardPage() {
                         onChange={(e) => setUserProfile({ ...userProfile, dropPointFavorit: e.target.value })}
                         className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       >
-                        <option value="Bank Sampah Syiah Kuala">Bank Sampah Syiah Kuala (0.8 km)</option>
-                        <option value="Bank Sampah Ulee Kareng">Bank Sampah Ulee Kareng (1.6 km)</option>
-                        <option value="Bank Sampah Baiturrahman">Bank Sampah Baiturrahman (3.2 km)</option>
-                        <option value="Bank Sampah Banda Raya">Bank Sampah Banda Raya (4.5 km)</option>
+                        {!mitraLocations.some((location) => location.name === userProfile.dropPointFavorit) && (
+                          <option value={userProfile.dropPointFavorit}>{userProfile.dropPointFavorit} (data tersimpan)</option>
+                        )}
+                        {mitraLocations.map((location) => (
+                          <option key={location.id} value={location.name}>
+                            {location.name} — {location.district}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
