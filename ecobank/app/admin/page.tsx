@@ -3,757 +3,2265 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useWaste } from '@/hooks/useWaste';
+import {
+  getGoogleMapsDirectionsUrl,
+  getGoogleMapsEmbedUrl,
+  getGoogleMapsSearchUrl,
+  mitraLocations,
+  type MitraLocation,
+} from '@/lib/mitraLocations';
+import MitraOsmMap from '@/components/MitraOsmMap';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-type AdminTab = 'overview' | 'tracking' | 'analitik' | 'masterdata';
+type AdminTab = 'overview' | 'nasabah' | 'tracking' | 'analitik' | 'masterdata';
+type TxFilter = 'all' | 'setor' | 'tukar' | 'pending';
+type TimeRange = 'today' | '7d' | '30d' | 'year';
+type TxStatus = 'completed' | 'pending' | 'rejected';
+type Metric = 'kg' | 'co2' | 'nasabah';
 
-// ─── SVG Icons ────────────────────────────────────────────────────────────────
-function IcHome({ c = "w-5 h-5" }: { c?: string }) {
-  return <svg className={c} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>;
-}
-function IcMap({ c = "w-5 h-5" }: { c?: string }) {
-  return <svg className={c} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>;
-}
-function IcChart({ c = "w-5 h-5" }: { c?: string }) {
-  return <svg className={c} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>;
-}
-function IcDatabase({ c = "w-5 h-5" }: { c?: string }) {
-  return <svg className={c} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>;
-}
-function IcUsers({ c = "w-5 h-5" }: { c?: string }) {
-  return <svg className={c} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>;
-}
-function IcLogout({ c = "w-5 h-5" }: { c?: string }) {
-  return <svg className={c} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>;
-}
-function IcMenu({ c = "w-5 h-5" }: { c?: string }) {
-  return <svg className={c} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>;
-}
-function IcSidebar({ c = "w-5 h-5" }: { c?: string }) {
-  return (
-    <svg className={c} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M9 4v16" />
-    </svg>
-  );
-}
-function IcChevronLeft({ c = "w-5 h-5" }: { c?: string }) {
-  return (
-    <svg className={c} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-    </svg>
-  );
-}
-function IcCheck({ c = "w-4 h-4" }: { c?: string }) {
-  return <svg className={c} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>;
-}
-function IcLeaf({ c = "w-5 h-5" }: { c?: string }) {
-  return <svg className={c} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>;
-}
-function IcPin({ c = "w-5 h-5" }: { c?: string }) {
-  return <svg className={c} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
-}
-function IcTrend({ c = "w-4 h-4" }: { c?: string }) {
-  return <svg className={c} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>;
-}
-function IcLock({ c = "w-6 h-6" }: { c?: string }) {
-  return <svg className={c} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>;
-}
-function IcEye({ c = "w-4 h-4" }: { c?: string }) {
-  return <svg className={c} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>;
-}
-function IcEyeOff({ c = "w-4 h-4" }: { c?: string }) {
-  return <svg className={c} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>;
-}
-function IcSpin({ c = "w-4 h-4" }: { c?: string }) {
-  return <svg className={`${c} animate-spin`} fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>;
+interface TransactionItem {
+  id: string;
+  userId: string;
+  userName: string;
+  type: 'setor' | 'tukar';
+  category: string;
+  weightOrUnit: string;
+  points: number;
+  time: string;
+  location: string;
+  status: TxStatus;
 }
 
-// ─── EcoBank Logo Matching Landing Page ───────────────────────────────────────
-function EcoBankMark({ size = 38 }: { size?: number }) {
+interface NasabahItem {
+  id: string;
+  nama: string;
+  email: string;
+  telepon: string;
+  kecamatan: string;
+  level: string;
+  poin: number;
+  totalKg: number;
+  frekuensi: number;
+  mitraFavorit: string;
+  joinDate: string;
+  status: 'Aktif' | 'Nonaktif';
+}
+
+interface MitraInfo extends MitraLocation {
+  status: 'Aktif' | 'Libur';
+}
+
+interface WasteCategory {
+  id: string;
+  nama: string;
+  poinPerKg: number;
+  emisiPerKg: number;
+}
+
+// ─── Icons (satu komponen, path saja) ────────────────────────────────────────
+const ICONS = {
+  dashboard: 'M3 3h7v9H3z M14 3h7v5h-7z M14 12h7v9h-7z M3 16h7v5H3z',
+  pin: 'M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z M12 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
+  chart: 'M3 3v18h18 M19 9l-5 5-4-4-3 3',
+  database: 'M3 5c0-1.66 4-3 9-3s9 1.34 9 3-4 3-9 3-9-1.34-9-3z M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5 M3 12c0 1.66 4 3 9 3s9-1.34 9-3',
+  refresh: 'M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8 M3 3v5h5 M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16 M16 16h5v5',
+  download: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3',
+  bell: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9 M10.3 21a1.94 1.94 0 0 0 3.4 0',
+  logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9',
+  sidebar: 'M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M9 3v18',
+  check: 'M20 6 9 17l-5-5',
+  search: 'M11 3a8 8 0 1 0 0 16 8 8 0 0 0 0-16z M21 21l-4.3-4.3',
+  lock: 'M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z M7 11V7a5 5 0 0 1 10 0v4',
+  eye: 'M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
+  eyeoff: 'M9.88 9.88a3 3 0 1 0 4.24 4.24 M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68 M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61 M2 2l20 20',
+  x: 'M18 6 6 18 M6 6l12 12',
+  plus: 'M12 5v14 M5 12h14',
+  pencil: 'M17 3a2.85 2.85 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z',
+  trash: 'M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2',
+  external: 'M15 3h6v6 M10 14 21 3 M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6',
+  users: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',
+  map: 'M9 20l-5.447-2.724A1 1 0 0 1 3 16.382V5.618a1 1 0 0 1 1.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0 0 21 18.382V7.618a1 1 0 0 0-.553-.894L15 4m0 13V4m0 0L9 7',
+  navigation: 'M3 11l19-9-9 19-2-8-8-2z',
+} as const;
+
+function Icon({ name, className = 'w-4 h-4' }: { name: keyof typeof ICONS; className?: string }) {
   return (
     <svg
-      width={size}
-      height={size}
-      viewBox="0 0 48 48"
+      className={className}
+      viewBox="0 0 24 24"
       fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-label="EcoBank Logo"
-      className="flex-shrink-0"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
     >
-      <defs>
-        <linearGradient id="adm-lg1" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#22c55e" />
-          <stop offset="100%" stopColor="#15803d" />
-        </linearGradient>
-        <linearGradient id="adm-lg2" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#dcfce7" />
-          <stop offset="100%" stopColor="#bbf7d0" />
-        </linearGradient>
-      </defs>
-      <path d="M24 2 L41.3 11 L41.3 29 L24 38 L6.7 29 L6.7 11 Z" fill="url(#adm-lg1)" />
-      <path d="M24 11 C31 14 35 20 32 26 C29 32 22 33 18 29 C14 25 15 17 20 13 C21.5 11.8 23 11 24 11 Z" fill="url(#adm-lg2)" />
-      <path d="M24 11 C23 19 21 26 20 32" stroke="#15803d" strokeWidth="1.4" strokeLinecap="round" fill="none" />
-      <path d="M23 16 C26 14.5 29 15.5 31 18" stroke="#15803d" strokeWidth="1" strokeLinecap="round" fill="none" opacity="0.7" />
-      <path d="M22 21 C25 19.5 29 20.5 31 23" stroke="#15803d" strokeWidth="1" strokeLinecap="round" fill="none" opacity="0.7" />
-      <path d="M20 32 L20 37" stroke="#bbf7d0" strokeWidth="1.8" strokeLinecap="round" />
-      <ellipse cx="20" cy="37" rx="4" ry="1.5" fill="#bbf7d0" opacity="0.6" />
+      {ICONS[name].split(' M').map((d, i) => (
+        <path key={i} d={i === 0 ? d : `M${d}`} />
+      ))}
     </svg>
   );
 }
 
-// ─── Mock mitra data ──────────────────────────────────────────────────────────
-const mitraData = [
-  { id: 'MTR-001', name: 'Bank Sampah Syiah Kuala', area: 'Banda Aceh - Kec. Syiah Kuala', active: 48, status: 'Aktif', x: 28, y: 34 },
-  { id: 'MTR-002', name: 'Bank Sampah Ulee Kareng', area: 'Banda Aceh - Kec. Ulee Kareng', active: 31, status: 'Aktif', x: 18, y: 42 },
-  { id: 'MTR-003', name: 'Bank Sampah Meuraxa', area: 'Banda Aceh - Kec. Meuraxa', active: 22, status: 'Aktif', x: 12, y: 28 },
-  { id: 'MTR-004', name: 'Bank Sampah Baiturrahman', area: 'Banda Aceh - Kec. Baiturrahman', active: 19, status: 'Aktif', x: 48, y: 55 },
-  { id: 'MTR-005', name: 'Bank Sampah Lueng Bata', area: 'Banda Aceh - Kec. Lueng Bata', active: 14, status: 'Libur', x: 62, y: 44 },
-  { id: 'MTR-006', name: 'Bank Sampah Banda Raya', area: 'Banda Aceh - Kec. Banda Raya', active: 27, status: 'Aktif', x: 72, y: 62 },
+function EcoBankMark({ size = 32 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className="flex-shrink-0" aria-hidden="true">
+      <rect width="48" height="48" rx="10" fill="#047857" />
+      <path d="M24 12 C31 14.5 34 21 31 27 C28 33 21 34 18 30 C15 26 16 19 20 15 C21.5 13.5 23 12.5 24 12 Z" fill="#ecfdf5" />
+      <path d="M24 14 C23 22 21 28 19.5 35" stroke="#047857" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// ─── LocalStorage Persistence Keys ──────────────────────────────────────────
+const STORAGE_KEY_MITRA = 'ecobank_admin_mitra';
+const STORAGE_KEY_TX = 'ecobank_admin_transactions';
+const STORAGE_KEY_CATEGORIES = 'ecobank_admin_categories';
+const STORAGE_KEY_AUTH = 'ecobank_admin_auth';
+const STORAGE_KEY_NASABAH = 'ecobank_admin_nasabah';
+
+// ─── Data awal ───────────────────────────────────────────────────────────────
+const initialTransactions: TransactionItem[] = [
+  { id: 'TX-9041', userId: 'NS-204', userName: 'Rahmat Hidayat', type: 'setor', category: 'Botol Plastik PET', weightOrUnit: '4.5 kg', points: 225, time: 'Baru saja', location: 'BS Syiah Kuala', status: 'completed' },
+  { id: 'TX-9040', userId: 'NS-089', userName: 'Siti Sarah', type: 'tukar', category: 'Voucher GoFood Rp 50.000', weightOrUnit: '1 kupon', points: -500, time: '3 menit lalu', location: 'Aplikasi', status: 'completed' },
+  { id: 'TX-9039', userId: 'NS-155', userName: 'Teuku M. Faisal', type: 'setor', category: 'Kaleng Logam & Aluminium', weightOrUnit: '3.2 kg', points: 256, time: '12 menit lalu', location: 'BS Ulee Kareng', status: 'completed' },
+  { id: 'TX-9038', userId: 'NS-312', userName: 'Nurul Annisa', type: 'setor', category: 'Kardus & Kertas Dupleks', weightOrUnit: '8.0 kg', points: 240, time: '24 menit lalu', location: 'BS Baiturrahman', status: 'completed' },
+  { id: 'TX-9037', userId: 'NS-411', userName: 'Dedi Kurniawan', type: 'setor', category: 'Minyak Jelantah Murni', weightOrUnit: '5.0 liter', points: 350, time: '45 menit lalu', location: 'BS Meuraxa', status: 'pending' },
+  { id: 'TX-9036', userId: 'NS-502', userName: 'Cut Zahra', type: 'setor', category: 'Botol Kaca Bening', weightOrUnit: '6.5 kg', points: 130, time: '1 jam lalu', location: 'BS Banda Raya', status: 'pending' },
 ];
 
-// ─── Monthly analytics data ───────────────────────────────────────────────────
+const initialMitra: MitraInfo[] = mitraLocations.map((location) => ({
+  ...location,
+  status: 'Aktif',
+}));
+
+const initialNasabah: NasabahItem[] = [
+  {
+    id: 'EB-2026-089',
+    nama: 'Siti Sarah',
+    email: 'sitisarah@gmail.com',
+    telepon: '0812-3456-7890',
+    kecamatan: 'Kec. Syiah Kuala',
+    level: 'Level 2 · Green Pioneer',
+    poin: 1850,
+    totalKg: 46.8,
+    frekuensi: 14,
+    mitraFavorit: 'Bank Sampah Syiah Kuala',
+    joinDate: '15 Jan 2026',
+    status: 'Aktif',
+  },
+  {
+    id: 'EB-2026-204',
+    nama: 'Rahmat Hidayat',
+    email: 'user@ecobank.id',
+    telepon: '0821-6987-1122',
+    kecamatan: 'Kec. Ulee Kareng',
+    level: 'Level 3 · Planet Guardian',
+    poin: 3420,
+    totalKg: 89.5,
+    frekuensi: 26,
+    mitraFavorit: 'Bank Sampah Ulee Kareng',
+    joinDate: '02 Feb 2026',
+    status: 'Aktif',
+  },
+  {
+    id: 'EB-2026-155',
+    nama: 'Teuku M. Faisal',
+    email: 'faisal.teuku@yahoo.com',
+    telepon: '0852-7788-9900',
+    kecamatan: 'Kec. Meuraxa',
+    level: 'Level 2 · Green Pioneer',
+    poin: 1240,
+    totalKg: 32.4,
+    frekuensi: 9,
+    mitraFavorit: 'Bank Sampah Meuraxa',
+    joinDate: '10 Mar 2026',
+    status: 'Aktif',
+  },
+  {
+    id: 'EB-2026-312',
+    nama: 'Nurul Annisa',
+    email: 'nurul.annisa@gmail.com',
+    telepon: '0813-4455-6677',
+    kecamatan: 'Kec. Baiturrahman',
+    level: 'Level 1 · Eco Starter',
+    poin: 680,
+    totalKg: 18.2,
+    frekuensi: 5,
+    mitraFavorit: 'Bank Sampah Baiturrahman',
+    joinDate: '22 Apr 2026',
+    status: 'Aktif',
+  },
+  {
+    id: 'EB-2026-411',
+    nama: 'Dedi Kurniawan',
+    email: 'dedikurnia@outlook.com',
+    telepon: '0853-1122-3344',
+    kecamatan: 'Kec. Lueng Bata',
+    level: 'Level 2 · Green Pioneer',
+    poin: 1530,
+    totalKg: 38.0,
+    frekuensi: 11,
+    mitraFavorit: 'Bank Sampah Lueng Bata',
+    joinDate: '05 Mei 2026',
+    status: 'Aktif',
+  },
+  {
+    id: 'EB-2026-502',
+    nama: 'Cut Zahra',
+    email: 'cutzahra@gmail.com',
+    telepon: '0811-2233-4455',
+    kecamatan: 'Kec. Banda Raya',
+    level: 'Level 1 · Eco Starter',
+    poin: 420,
+    totalKg: 12.5,
+    frekuensi: 3,
+    mitraFavorit: 'Bank Sampah Banda Raya',
+    joinDate: '18 Jun 2026',
+    status: 'Aktif',
+  },
+  {
+    id: 'EB-2026-618',
+    nama: 'Bukhari Al-Hafiz',
+    email: 'bukhari.hafiz@gmail.com',
+    telepon: '0822-7711-8899',
+    kecamatan: 'Kec. Kuta Alam',
+    level: 'Level 3 · Planet Guardian',
+    poin: 4150,
+    totalKg: 112.0,
+    frekuensi: 32,
+    mitraFavorit: 'Bank Sampah Syiah Kuala',
+    joinDate: '12 Jan 2026',
+    status: 'Aktif',
+  },
+  {
+    id: 'EB-2026-724',
+    nama: 'Rizka Maulida',
+    email: 'rizka.maulida@yahoo.co.id',
+    telepon: '0852-6633-2211',
+    kecamatan: 'Kec. Jaya Baru',
+    level: 'Level 1 · Eco Starter',
+    poin: 150,
+    totalKg: 4.0,
+    frekuensi: 1,
+    mitraFavorit: 'Bank Sampah Banda Raya',
+    joinDate: '01 Nov 2026',
+    status: 'Nonaktif',
+  },
+];
+
+const defaultCategories: WasteCategory[] = [
+  { id: 'WST-001', nama: 'Botol Plastik PET', poinPerKg: 50, emisiPerKg: 1.5 },
+  { id: 'WST-002', nama: 'Kardus & Kertas', poinPerKg: 30, emisiPerKg: 0.9 },
+  { id: 'WST-003', nama: 'Kaleng Logam & Aluminium', poinPerKg: 80, emisiPerKg: 9.0 },
+  { id: 'WST-004', nama: 'Botol Kaca', poinPerKg: 20, emisiPerKg: 0.3 },
+  { id: 'WST-005', nama: 'Minyak Jelantah', poinPerKg: 70, emisiPerKg: 2.8 },
+];
+
 const monthlyData = [
-  { month: 'Jun', kg: 3200, co2: 6.8, nasabah: 980 },
-  { month: 'Jul', kg: 3850, co2: 7.9, nasabah: 1050 },
-  { month: 'Agu', kg: 4100, co2: 8.4, nasabah: 1180 },
-  { month: 'Sep', kg: 3700, co2: 7.6, nasabah: 1240 },
-  { month: 'Okt', kg: 4600, co2: 9.5, nasabah: 1380 },
-  { month: 'Nov', kg: 5200, co2: 11.2, nasabah: 1420 },
-];
-const maxKg = Math.max(...monthlyData.map(d => d.kg));
-
-// ─── Active users on map ──────────────────────────────────────────────────────
-const activeUsers = [
-  { x: 32, y: 38 }, { x: 20, y: 46 }, { x: 50, y: 60 },
-  { x: 15, y: 32 }, { x: 68, y: 50 }, { x: 76, y: 65 },
+  { month: 'Jun', kg: 3200, co2: 6800, nasabah: 980 },
+  { month: 'Jul', kg: 3850, co2: 7900, nasabah: 1050 },
+  { month: 'Agu', kg: 4100, co2: 8400, nasabah: 1180 },
+  { month: 'Sep', kg: 3700, co2: 7600, nasabah: 1240 },
+  { month: 'Okt', kg: 4600, co2: 9500, nasabah: 1380 },
+  { month: 'Nov', kg: 5200, co2: 11200, nasabah: 1420 },
 ];
 
-// ─── PAGE ─────────────────────────────────────────────────────────────────────
+const metricMeta: Record<Metric, { label: string; unit: string }> = {
+  kg: { label: 'Sampah terkumpul', unit: 'kg' },
+  co2: { label: 'Reduksi CO₂', unit: 'kg' },
+  nasabah: { label: 'Nasabah aktif', unit: 'orang' },
+};
+
+const composition = [
+  { label: 'Plastik (PET, HDPE)', pct: 42 },
+  { label: 'Kardus & kertas', pct: 28 },
+  { label: 'Logam & aluminium', pct: 20 },
+  { label: 'Kaca & botol', pct: 10 },
+];
+
+const statsByRange: Record<TimeRange, { kg: number; co2: number; nasabah: number; delta: string; vs: string }> = {
+  today: { kg: 1342, co2: 2760, nasabah: 138, delta: '+4.1%', vs: 'dibanding kemarin' },
+  '7d': { kg: 9480, co2: 19500, nasabah: 612, delta: '+6.8%', vs: 'dibanding 7 hari sebelumnya' },
+  '30d': { kg: 45200, co2: 89000, nasabah: 2480, delta: '+12.4%', vs: 'dibanding bulan lalu' },
+  year: { kg: 312600, co2: 640000, nasabah: 12980, delta: '+21.0%', vs: 'dibanding 2025' },
+};
+
+const rangeLabel: Record<TimeRange, string> = { today: 'Hari ini', '7d': '7 hari', '30d': '30 hari', year: '2026' };
+
+// ─── Helper ──────────────────────────────────────────────────────────────────
+const fmtNum = (n: number) => n.toLocaleString('id-ID');
+const fmtMass = (kg: number) => (kg >= 1000 ? `${(kg / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} ton` : `${fmtNum(kg)} kg`);
+
+function downloadCsv(filename: string, rows: (string | number)[][]) {
+  const csv = rows
+    .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
+    .join('\r\n');
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2';
+const btnPrimary = `inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-medium transition-colors disabled:opacity-60 ${focusRing}`;
+const btnSecondary = `inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 text-sm font-medium transition-colors ${focusRing}`;
+const inputCls = `w-full px-3 py-2.5 rounded-lg text-sm bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20`;
+
+// ─── Halaman Admin ───────────────────────────────────────────────────────────
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
+
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [adminScrolled, setAdminScrolled] = useState(false);
-  const adminScrollRef = useRef<HTMLDivElement>(null);
-  const { wasteTypes = [] } = useWaste();
+  const [timeRange, setTimeRange] = useState<TimeRange>('30d');
+  const [txFilter, setTxFilter] = useState<TxFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [metric, setMetric] = useState<Metric>('kg');
 
+  const [transactions, setTransactions] = useState<TransactionItem[]>(initialTransactions);
+  const [mitra, setMitra] = useState<MitraInfo[]>(initialMitra);
+  const [selectedMitraId, setSelectedMitraId] = useState<string | null>(null);
+  const [mitraMapView, setMitraMapView] = useState<'interactive' | 'overview'>('overview');
+
+  const [nasabah, setNasabah] = useState<NasabahItem[]>(initialNasabah);
+  const [selectedNasabah, setSelectedNasabah] = useState<NasabahItem | null>(null);
+  const [nasabahSearch, setNasabahSearch] = useState('');
+  const [nasabahLevelFilter, setNasabahLevelFilter] = useState<'all' | 'Level 1' | 'Level 2' | 'Level 3' | 'Nonaktif'>('all');
+  const [nasabahFormOpen, setNasabahFormOpen] = useState(false);
+  const [nasabahEditing, setNasabahEditing] = useState<NasabahItem | null>(null);
+  const [nasabahForm, setNasabahForm] = useState({
+    nama: '',
+    email: '',
+    telepon: '',
+    kecamatan: 'Kec. Syiah Kuala',
+    level: 'Level 1 · Eco Starter',
+    poin: '0',
+    mitraFavorit: mitraLocations[0].name,
+  });
+  const [nasabahFormError, setNasabahFormError] = useState('');
+
+  const { wasteTypes = [] } = useWaste();
+  const [categories, setCategories] = useState<WasteCategory[]>(defaultCategories);
+  const seeded = useRef(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<WasteCategory | null>(null);
+  const [form, setForm] = useState({ nama: '', poin: '', emisi: '' });
+  const [formError, setFormError] = useState('');
+  const [deleting, setDeleting] = useState<WasteCategory | null>(null);
+
+  const [toast, setToast] = useState('');
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  // ── Muat data persisten dari localStorage agar perubahan tidak reset saat login ulang / reload ──
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      setSidebarOpen(false);
-    }
-    const el = adminScrollRef.current;
-    if (el) {
-      const handleScroll = () => setAdminScrolled(el.scrollTop > 20);
-      el.addEventListener('scroll', handleScroll, { passive: true });
-      return () => el.removeEventListener('scroll', handleScroll);
+    if (typeof window === 'undefined') return;
+    try {
+      const savedAuth = localStorage.getItem(STORAGE_KEY_AUTH);
+      if (savedAuth === 'true') {
+        setIsAuthenticated(true);
+      }
+
+      const savedMitra = localStorage.getItem(STORAGE_KEY_MITRA);
+      if (savedMitra) {
+        const parsed = JSON.parse(savedMitra);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Hanya pulihkan status operasional; alamat dan jadwal selalu mengikuti data lokasi terbaru.
+          const merged = initialMitra.map((init) => {
+            const found = parsed.find((p: MitraInfo) => p.id === init.id);
+            return found ? { ...init, status: found.status } : init;
+          });
+          setMitra(merged);
+        }
+      }
+
+      const savedTx = localStorage.getItem(STORAGE_KEY_TX);
+      if (savedTx) {
+        const parsedTx = JSON.parse(savedTx);
+        if (Array.isArray(parsedTx) && parsedTx.length > 0) {
+          setTransactions(parsedTx);
+        }
+      }
+
+      const savedCat = localStorage.getItem(STORAGE_KEY_CATEGORIES);
+      if (savedCat) {
+        const parsedCat = JSON.parse(savedCat);
+        if (Array.isArray(parsedCat) && parsedCat.length > 0) {
+          setCategories(parsedCat);
+          seeded.current = true;
+        }
+      }
+
+      const savedNasabah = localStorage.getItem(STORAGE_KEY_NASABAH);
+      if (savedNasabah) {
+        const parsedNasabah = JSON.parse(savedNasabah);
+        if (Array.isArray(parsedNasabah) && parsedNasabah.length > 0) {
+          setNasabah(parsedNasabah);
+        }
+      }
+    } catch (err) {
+      console.warn('Gagal membaca data dari localStorage:', err);
     }
   }, []);
 
+  // Sinkronkan master data dari hook sekali saja saat data tersedia jika belum ada di storage
+  useEffect(() => {
+    if (seeded.current || wasteTypes.length === 0) return;
+    seeded.current = true;
+    const synced = wasteTypes.map((w: { id: string; nama?: string; name?: string; poinPerKg: number; emisiPerKg: number }) => ({
+      id: w.id,
+      nama: w.nama || w.name || w.id,
+      poinPerKg: w.poinPerKg,
+      emisiPerKg: w.emisiPerKg,
+    }));
+    setCategories(synced);
+    try {
+      localStorage.setItem(STORAGE_KEY_CATEGORIES, JSON.stringify(synced));
+    } catch (e) {}
+  }, [wasteTypes]);
+
+  useEffect(() => {
+    if (window.innerWidth < 1024) setSidebarOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(''), 2600);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotificationOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setFormOpen(false);
+        setDeleting(null);
+        setNotificationOpen(false);
+        setNasabahFormOpen(false);
+        setSelectedNasabah(null);
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, []);
+
+  // ── Aksi ──
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
+    setAuthError('');
+    await new Promise((r) => setTimeout(r, 500));
     if (password === 'admin123' || password === 'ecobank2026') {
       setIsAuthenticated(true);
+      try {
+        localStorage.setItem(STORAGE_KEY_AUTH, 'true');
+      } catch (e) {}
+      setPassword('');
+      setToast('Selamat datang, Administrator');
     } else {
-      alert('Password Admin Salah! Gunakan: admin123');
+      setAuthError('Kata sandi salah. Periksa kembali, atau pakai sandi demo di bawah.');
     }
     setLoading(false);
   };
 
-  // ── LOGIN FORM ──────────────────────────────────────────────────────────────
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    try {
+      localStorage.removeItem(STORAGE_KEY_AUTH);
+    } catch (e) {}
+    setToast('Berhasil keluar dari admin');
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await new Promise((r) => setTimeout(r, 600));
+    setIsRefreshing(false);
+    setToast('Data diperbarui');
+  };
+
+  const decideTx = (id: string, status: 'completed' | 'rejected') => {
+    setTransactions((prev) => {
+      const next = prev.map((t) => (t.id === id ? { ...t, status } : t));
+      try {
+        localStorage.setItem(STORAGE_KEY_TX, JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+    setToast(status === 'completed' ? `${id} diverifikasi, poin masuk ke nasabah` : `${id} ditolak`);
+  };
+
+  const exportTransactions = () => {
+    const statusLabel: Record<TxStatus, string> = { completed: 'Selesai', pending: 'Menunggu verifikasi', rejected: 'Ditolak' };
+    downloadCsv('transaksi-ecobank.csv', [
+      ['ID', 'Nasabah', 'ID Nasabah', 'Jenis', 'Kategori', 'Jumlah', 'Poin', 'Waktu', 'Lokasi', 'Status'],
+      ...filteredTransactions.map((t) => [t.id, t.userName, t.userId, t.type === 'setor' ? 'Setoran' : 'Penukaran', t.category, t.weightOrUnit, t.points, t.time, t.location, statusLabel[t.status]]),
+    ]);
+    setToast(`${filteredTransactions.length} transaksi diekspor ke CSV`);
+  };
+
+  const updateMitra = (id: string, patch: Partial<MitraInfo>) => {
+    setMitra((prev) => {
+      const next = prev.map((m) => (m.id === id ? { ...m, ...patch } : m));
+      try {
+        localStorage.setItem(STORAGE_KEY_MITRA, JSON.stringify(next));
+      } catch (err) {
+        console.warn('Gagal menyimpan mitra ke localStorage:', err);
+      }
+      return next;
+    });
+  };
+
+  const resetMitraData = () => {
+    setMitra(initialMitra);
+    try {
+      localStorage.removeItem(STORAGE_KEY_MITRA);
+    } catch (e) {}
+    setToast('Data status mitra berhasil direset ke default');
+  };
+
+  const openAddForm = () => {
+    setEditing(null);
+    setForm({ nama: '', poin: '', emisi: '' });
+    setFormError('');
+    setFormOpen(true);
+  };
+
+  const openEditForm = (c: WasteCategory) => {
+    setEditing(c);
+    setForm({ nama: c.nama, poin: String(c.poinPerKg), emisi: String(c.emisiPerKg) });
+    setFormError('');
+    setFormOpen(true);
+  };
+
+  const saveCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    const nama = form.nama.trim();
+    const poin = Number(form.poin);
+    const emisi = Number(form.emisi.replace(',', '.'));
+    if (!nama) return setFormError('Nama kategori wajib diisi.');
+    if (categories.some((c) => c.nama.toLowerCase() === nama.toLowerCase() && c.id !== editing?.id))
+      return setFormError('Nama ini sudah dipakai kategori lain. Gunakan nama yang berbeda.');
+    if (!Number.isFinite(poin) || poin < 0 || !Number.isInteger(poin))
+      return setFormError('Poin per kg harus berupa bilangan bulat, minimal 0.');
+    if (!Number.isFinite(emisi) || emisi < 0) return setFormError('Faktor emisi harus berupa angka, minimal 0.');
+
+    if (editing) {
+      setCategories((prev) => {
+        const next = prev.map((c) => (c.id === editing.id ? { ...c, nama, poinPerKg: poin, emisiPerKg: emisi } : c));
+        try {
+          localStorage.setItem(STORAGE_KEY_CATEGORIES, JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
+      setToast(`Kategori ${nama} disimpan`);
+    } else {
+      const nextIdNum = Math.max(0, ...categories.map((c) => parseInt(c.id.replace(/\D/g, ''), 10) || 0)) + 1;
+      const newCat: WasteCategory = { id: `WST-${String(nextIdNum).padStart(3, '0')}`, nama, poinPerKg: poin, emisiPerKg: emisi };
+      setCategories((prev) => {
+        const next = [...prev, newCat];
+        try {
+          localStorage.setItem(STORAGE_KEY_CATEGORIES, JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
+      setToast(`Kategori ${nama} ditambahkan`);
+    }
+    setFormOpen(false);
+  };
+
+  const confirmDelete = () => {
+    if (!deleting) return;
+    setCategories((prev) => {
+      const next = prev.filter((c) => c.id !== deleting.id);
+      try {
+        localStorage.setItem(STORAGE_KEY_CATEGORIES, JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+    setToast(`Kategori ${deleting.nama} dihapus`);
+    setDeleting(null);
+  };
+
+  // ── Aksi Nasabah ──
+  const updateNasabahStatus = (id: string, newStatus: 'Aktif' | 'Nonaktif') => {
+    setNasabah((prev) => {
+      const next = prev.map((n) => (n.id === id ? { ...n, status: newStatus } : n));
+      try {
+        localStorage.setItem(STORAGE_KEY_NASABAH, JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+    setToast(`Status nasabah ${id} diubah ke ${newStatus}`);
+    if (selectedNasabah && selectedNasabah.id === id) {
+      setSelectedNasabah((prev) => (prev ? { ...prev, status: newStatus } : null));
+    }
+  };
+
+  const addBonusPoints = (id: string, amount: number) => {
+    setNasabah((prev) => {
+      const next = prev.map((n) => (n.id === id ? { ...n, poin: n.poin + amount } : n));
+      try {
+        localStorage.setItem(STORAGE_KEY_NASABAH, JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+    setToast(`+${amount} poin berhasil ditambahkan`);
+    if (selectedNasabah && selectedNasabah.id === id) {
+      setSelectedNasabah((prev) => (prev ? { ...prev, poin: prev.poin + amount } : null));
+    }
+  };
+
+  const openAddNasabahForm = () => {
+    setNasabahEditing(null);
+    setNasabahForm({
+      nama: '',
+      email: '',
+      telepon: '',
+      kecamatan: 'Kec. Syiah Kuala',
+      level: 'Level 1 · Eco Starter',
+      poin: '0',
+      mitraFavorit: mitraLocations[0].name,
+    });
+    setNasabahFormError('');
+    setNasabahFormOpen(true);
+  };
+
+  const openEditNasabahForm = (n: NasabahItem) => {
+    setNasabahEditing(n);
+    setNasabahForm({
+      nama: n.nama,
+      email: n.email,
+      telepon: n.telepon,
+      kecamatan: n.kecamatan,
+      level: n.level,
+      poin: String(n.poin),
+      mitraFavorit: n.mitraFavorit,
+    });
+    setNasabahFormError('');
+    setNasabahFormOpen(true);
+  };
+
+  const saveNasabah = (e: React.FormEvent) => {
+    e.preventDefault();
+    const nama = nasabahForm.nama.trim();
+    const email = nasabahForm.email.trim();
+    const telepon = nasabahForm.telepon.trim();
+    const poin = parseInt(nasabahForm.poin, 10) || 0;
+    if (!nama) return setNasabahFormError('Nama nasabah wajib diisi.');
+    if (!email || !email.includes('@')) return setNasabahFormError('Format email tidak valid.');
+
+    if (nasabahEditing) {
+      setNasabah((prev) => {
+        const next = prev.map((n) =>
+          n.id === nasabahEditing.id
+            ? { ...n, nama, email, telepon, kecamatan: nasabahForm.kecamatan, level: nasabahForm.level, poin, mitraFavorit: nasabahForm.mitraFavorit }
+            : n
+        );
+        try {
+          localStorage.setItem(STORAGE_KEY_NASABAH, JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
+      setToast(`Data nasabah ${nama} diperbarui`);
+    } else {
+      const randomNum = Math.floor(100 + Math.random() * 900);
+      const newNasabah: NasabahItem = {
+        id: `EB-2026-${randomNum}`,
+        nama,
+        email,
+        telepon: telepon || '0812-xxxx-xxxx',
+        kecamatan: nasabahForm.kecamatan,
+        level: nasabahForm.level,
+        poin,
+        totalKg: 0,
+        frekuensi: 0,
+        mitraFavorit: nasabahForm.mitraFavorit,
+        joinDate: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
+        status: 'Aktif',
+      };
+      setNasabah((prev) => {
+        const next = [newNasabah, ...prev];
+        try {
+          localStorage.setItem(STORAGE_KEY_NASABAH, JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
+      setToast(`Nasabah baru ${nama} berhasil didaftarkan`);
+    }
+    setNasabahFormOpen(false);
+  };
+
+  const exportNasabah = () => {
+    downloadCsv('data-nasabah-ecobank.csv', [
+      ['ID Nasabah', 'Nama', 'Email', 'No. HP', 'Kecamatan', 'Level', 'Saldo Poin', 'Total Setor (kg)', 'Frekuensi', 'Mitra Favorit', 'Tanggal Bergabung', 'Status'],
+      ...filteredNasabah.map((n) => [n.id, n.nama, n.email, n.telepon, n.kecamatan, n.level, n.poin, n.totalKg, n.frekuensi, n.mitraFavorit, n.joinDate, n.status]),
+    ]);
+    setToast(`${filteredNasabah.length} data nasabah diekspor ke CSV`);
+  };
+
+  // ── Turunan data ──
+  const filteredNasabah = nasabah.filter((n) => {
+    if (nasabahLevelFilter === 'Nonaktif' && n.status !== 'Nonaktif') return false;
+    if (nasabahLevelFilter !== 'all' && nasabahLevelFilter !== 'Nonaktif' && !n.level.includes(nasabahLevelFilter)) return false;
+    const q = nasabahSearch.trim().toLowerCase();
+    if (!q) return true;
+    return [n.id, n.nama, n.email, n.telepon, n.kecamatan, n.mitraFavorit].some((v) => v.toLowerCase().includes(q));
+  });
+  const filteredTransactions = transactions.filter((t) => {
+    if (txFilter === 'setor' && t.type !== 'setor') return false;
+    if (txFilter === 'tukar' && t.type !== 'tukar') return false;
+    if (txFilter === 'pending' && t.status !== 'pending') return false;
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return [t.id, t.userName, t.userId, t.category, t.location].some((v) => v.toLowerCase().includes(q));
+  });
+
+  const pendingCount = transactions.filter((t) => t.status === 'pending').length;
+  const activeMitra = mitra.filter((m) => m.status === 'Aktif');
+  const selectedMitra = mitra.find((m) => m.id === selectedMitraId) ?? null;
+  const stats = statsByRange[timeRange];
+  const maxMetric = Math.max(...monthlyData.map((d) => d[metric]));
+  const avgMetric = Math.round(monthlyData.reduce((s, d) => s + d[metric], 0) / monthlyData.length);
+
+  useEffect(() => {
+    if (activeTab !== 'tracking' || !selectedMitraId) return;
+    const selectedRow = document.getElementById(`mitra-${selectedMitraId}`);
+    if (!selectedRow) return;
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    selectedRow.scrollIntoView({
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      block: 'nearest',
+    });
+  }, [activeTab, selectedMitraId]);
+
+  const filterTabs: { key: TxFilter; label: string }[] = [
+    { key: 'all', label: 'Semua' },
+    { key: 'setor', label: 'Setoran' },
+    { key: 'tukar', label: 'Penukaran' },
+    { key: 'pending', label: `Perlu verifikasi${pendingCount ? ` (${pendingCount})` : ''}` },
+  ];
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // LOGIN
+  // ═════════════════════════════════════════════════════════════════════════
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #031a09 0%, #0a3018 50%, #0f4a24 100%)', fontFamily: 'var(--font-geist-sans, "Plus Jakarta Sans", sans-serif)' }}>
-        {/* subtle grid pattern */}
-        <div className="fixed inset-0 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, rgba(22,163,74,0.08) 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
+      <div className="min-h-screen relative flex flex-col justify-between px-4 py-6 sm:px-8 font-sans bg-neutral-950">
+        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url('/images/background.jpg')` }} />
+        <div className="absolute inset-0 bg-neutral-950/70" />
 
-        <div className="relative w-full max-w-sm space-y-5">
-          <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium transition-colors" style={{ color: 'rgba(134,239,172,0.7)' }}>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
-            Kembali ke Beranda
+        <header className="relative z-10 w-full max-w-5xl mx-auto">
+          <Link href="/" className={`inline-flex items-center gap-2 text-sm text-white/90 hover:text-white px-3 py-1.5 rounded-lg bg-black/30 ${focusRing}`}>
+            <span aria-hidden="true">←</span> Kembali ke beranda
           </Link>
+        </header>
 
-          <div className="p-8 rounded-2xl space-y-6" style={{ background: 'rgba(10,28,17,0.72)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.1)' }}>
-            {/* Header */}
-            <div className="flex flex-col items-center gap-3 text-center">
-              <div className="p-4 rounded-2xl" style={{ background: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.2)' }}>
-                <IcLock c="w-7 h-7 text-green-400" />
-              </div>
+        <main className="relative z-10 w-full max-w-3xl mx-auto my-auto py-8">
+          <div className="grid grid-cols-1 md:grid-cols-5 bg-white rounded-xl overflow-hidden shadow-2xl">
+            <div className="md:col-span-2 bg-emerald-800 text-white p-8 flex flex-col justify-between gap-8">
               <div>
-                <h1 className="text-xl font-bold text-white">Portal Administrator</h1>
-                <p className="text-sm mt-1" style={{ color: 'rgba(134,239,172,0.6)' }}>Akses terbatas pengelola EcoBank</p>
+                <p className="text-base font-semibold">EcoBank Admin</p>
+                <p className="text-sm text-emerald-100 mt-1.5 leading-relaxed">Catat setoran, verifikasi poin, dan pantau mitra bank sampah.</p>
               </div>
+              <div className="w-36 h-36 mx-auto">
+                <img src="/images/maskot_ecobank3.png" alt="Maskot EcoBank" className="w-full h-full object-contain anim-float" />
+              </div>
+              <p className="text-sm text-emerald-100">Khusus petugas dan pengelola unit bank sampah terdaftar.</p>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold block" style={{ color: 'rgba(255,255,255,0.6)' }}>Kata Sandi Admin</label>
-                <div className="relative">
-                  <input
-                    type={showPass ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl text-sm font-medium text-white placeholder:text-slate-500 focus:outline-none pr-12"
-                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}
-                  />
-                  <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                    {showPass ? <IcEyeOff /> : <IcEye />}
-                  </button>
+            <div className="md:col-span-3 p-8 sm:p-10 flex flex-col justify-center">
+              <h1 className="text-xl font-semibold text-slate-900">Masuk ke dashboard</h1>
+              <p className="text-sm text-slate-600 mt-1.5 mb-6">Masukkan kata sandi petugas untuk melanjutkan.</p>
+
+              {authError && (
+                <p role="alert" className="mb-4 text-sm text-red-700 border-l-2 border-red-600 pl-3 py-1">
+                  {authError}
+                </p>
+              )}
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <label htmlFor="admin-pass" className="block text-sm font-medium text-slate-800 mb-1.5">
+                    Kata sandi
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="admin-pass"
+                      type={showPass ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className={`${inputCls} pr-11`}
+                      autoFocus
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPass(!showPass)}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 text-slate-500 hover:text-slate-800 rounded-md"
+                      aria-label={showPass ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+                    >
+                      <Icon name={showPass ? 'eyeoff' : 'eye'} />
+                    </button>
+                  </div>
                 </div>
-              </div>
+                <button type="submit" disabled={loading} className={`${btnPrimary} w-full`}>
+                  {loading ? 'Memeriksa…' : 'Masuk'}
+                </button>
+              </form>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all"
-                style={{ background: loading ? '#14532d' : '#16a34a', color: 'white' }}
-              >
-                {loading ? <><IcSpin c="w-4 h-4" /> Memverifikasi...</> : 'Masuk ke Dashboard Admin'}
-              </button>
-            </form>
-
-            {/* Hint */}
-            <div className="p-3 rounded-xl text-[11px] space-y-1" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <p className="font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>Kredensial Demo</p>
-              <p style={{ color: 'rgba(255,255,255,0.35)' }}>Password: <code className="font-mono px-1 rounded" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(134,239,172,0.8)' }}>admin123</code></p>
+              <p className="mt-5 text-sm text-slate-500">
+                Mode demo:{' '}
+                <button type="button" onClick={() => setPassword('admin123')} className="font-mono text-slate-800 underline underline-offset-2 hover:text-emerald-800">
+                  isi sandi demo
+                </button>
+              </p>
             </div>
-
-            <p className="text-center text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
-              Bukan Admin?{' '}
-              <Link href="/login" className="font-semibold" style={{ color: '#4ade80' }}>Login sebagai Nasabah</Link>
-            </p>
           </div>
-        </div>
+        </main>
+
+        <footer className="relative z-10 text-center text-sm text-white/70">&copy; {new Date().getFullYear()} EcoBank</footer>
       </div>
     );
   }
 
-  // ── ADMIN DASHBOARD ─────────────────────────────────────────────────────────
-  const navItems: { tab: AdminTab; label: string; icon: React.ReactNode }[] = [
-    { tab: 'overview', label: 'Dashboard', icon: <IcHome /> },
-    { tab: 'tracking', label: 'Tracking Lokasi', icon: <IcMap /> },
-    { tab: 'analitik', label: 'Analitik Lanjutan', icon: <IcChart /> },
-    { tab: 'masterdata', label: 'Master Data', icon: <IcDatabase /> },
+  // ═════════════════════════════════════════════════════════════════════════
+  // DASHBOARD
+  // ═════════════════════════════════════════════════════════════════════════
+  const navTabs: { tab: AdminTab; label: string; description: string; icon: keyof typeof ICONS; count?: number }[] = [
+    { tab: 'overview', label: 'Ringkasan', description: 'Pantau aktivitas harian', icon: 'dashboard', count: pendingCount || undefined },
+    { tab: 'nasabah', label: 'Nasabah', description: 'Data & saldo poin pengguna', icon: 'users', count: nasabah.length || undefined },
+    { tab: 'tracking', label: 'Lokasi mitra', description: 'Peta pin lokasi & detail mitra', icon: 'pin' },
+    { tab: 'analitik', label: 'Analitik', description: 'Tren dan dampak', icon: 'chart' },
+    { tab: 'masterdata', label: 'Master data', description: 'Atur kategori dan poin', icon: 'database' },
   ];
-
-  const headerLabels: Record<AdminTab, string> = {
-    overview: 'Dashboard Overview',
-    tracking: 'Tracking Lokasi Mitra',
-    analitik: 'Analitik Lanjutan',
-    masterdata: 'Master Data Jenis Sampah',
+  const pageTitle: Record<AdminTab, string> = {
+    overview: 'Ringkasan',
+    nasabah: 'Direktori Nasabah',
+    tracking: 'Lokasi mitra',
+    analitik: 'Analitik',
+    masterdata: 'Master data sampah',
+  };
+  const pageDescription: Record<AdminTab, string> = {
+    overview: 'Pantau dampak, transaksi masuk, dan pekerjaan yang perlu ditindaklanjuti.',
+    nasabah: 'Kelola data nasabah terdaftar, akumulasi setoran sampah, dan saldo poin reward.',
+    tracking: 'Lihat semua titik mitra dan pilih pin untuk membuka detail lokasi.',
+    analitik: 'Bandingkan volume setoran, aktivitas nasabah, dan dampak lingkungan.',
+    masterdata: 'Atur nilai poin dan faktor emisi yang digunakan dalam perhitungan setoran.',
   };
 
   return (
-    <div className="min-h-screen flex" style={{ background: '#f0f7f3', fontFamily: 'var(--font-geist-sans, "Plus Jakarta Sans", sans-serif)' }}>
+    <div className="min-h-screen bg-[#f5f8f5] text-slate-900 flex font-sans antialiased">
+      {sidebarOpen && <div className="fixed inset-0 bg-slate-900/40 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />
-      )}
-
-      {/* ── SIDEBAR DENGAN TOGGLE COLLAPSE (FULL VIEW MODE) ── */}
+      {/* Sidebar */}
       <aside
-        className={`fixed md:sticky top-0 h-screen inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out shadow-xl md:shadow-none overflow-hidden flex-shrink-0 ${
-          sidebarOpen
-            ? 'w-64 translate-x-0 opacity-100'
-            : 'w-0 -translate-x-full md:translate-x-0 md:w-0 opacity-0 pointer-events-none'
+        className={`fixed lg:sticky top-0 h-screen z-50 flex-shrink-0 bg-[#f2f6f2] border-r border-slate-200 transition-all duration-200 overflow-hidden ${
+          sidebarOpen ? 'w-60' : 'w-0 border-r-0'
         }`}
-        style={{
-          background: 'linear-gradient(180deg, #031a09 0%, #0a3018 60%, #0f4a24 100%)',
-          borderRight: sidebarOpen ? '1px solid rgba(255,255,255,0.08)' : 'none',
-        }}
       >
-        <div className="w-64 h-full flex flex-col justify-between">
-          <div>
-            {/* Logo + Close Button */}
-            <div className="p-5 pb-4 flex items-center justify-between">
-              <Link href="/" className="flex items-center gap-3">
-                <EcoBankMark size={36} />
-                <div>
-                  <h1 className="font-bold text-white text-base leading-tight">EcoBank</h1>
-                  <p className="text-xs font-medium" style={{ color: '#86efac' }}>Panel Administrator</p>
-                </div>
-              </Link>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="p-1.5 rounded-lg text-emerald-200/60 hover:text-white hover:bg-white/10 transition-colors flex items-center justify-center"
-                title="Tutup Sidebar"
-                aria-label="Tutup Sidebar"
-              >
-                <IcChevronLeft c="w-5 h-5" />
-              </button>
+        <div className="w-60 h-full flex flex-col">
+          <div className="px-5 h-16 flex items-center gap-3 border-b border-slate-200">
+            <EcoBankMark size={32} />
+            <div className="leading-tight">
+              <p className="font-semibold text-slate-900">EcoBank</p>
+              <p className="text-xs text-slate-500">Admin · Banda Aceh</p>
             </div>
-
-            <div className="mx-5 mb-5" style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
-
-            <nav className="px-4 space-y-1">
-              <p className="text-[10px] font-bold uppercase tracking-widest px-2 mb-3" style={{ color: 'rgba(134,239,172,0.5)' }}>Administrasi</p>
-              {navItems.map((item) => {
-                const isActive = activeTab === item.tab;
-                return (
-                  <button
-                    key={item.tab}
-                    onClick={() => { setActiveTab(item.tab); if (typeof window !== 'undefined' && window.innerWidth < 1024) setSidebarOpen(false); }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left"
-                    style={isActive
-                      ? { background: 'rgba(22,163,74,0.25)', color: '#86efac', borderLeft: '3px solid #16a34a' }
-                      : { color: 'rgba(255,255,255,0.55)', borderLeft: '3px solid transparent' }
-                    }
-                  >
-                    <span style={{ color: isActive ? '#4ade80' : 'rgba(255,255,255,0.35)' }}>{item.icon}</span>
-                    {item.label}
-                  </button>
-                );
-              })}
-            </nav>
           </div>
 
-          <div className="p-4 space-y-2">
-            <div className="mx-2 mb-3" style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
-            <div className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm" style={{ background: '#dc2626', color: 'white' }}>A</div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-white truncate">Administrator</p>
-                <p className="text-[10px] truncate" style={{ color: 'rgba(134,239,172,0.6)' }}>Super Admin</p>
-              </div>
+          <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto" aria-label="Menu utama">
+            {navTabs.map((item) => {
+              const active = activeTab === item.tab;
+              return (
+                <button
+                  key={item.tab}
+                  onClick={() => {
+                    setActiveTab(item.tab);
+                    if (window.innerWidth < 1024) setSidebarOpen(false);
+                  }}
+                  aria-current={active ? 'page' : undefined}
+                  className={`w-full flex items-center justify-between gap-3 px-3 py-3 rounded-xl text-sm text-left transition-colors ${focusRing} ${
+                    active ? 'bg-white text-emerald-900 font-medium border border-emerald-100 shadow-sm' : 'text-slate-700 hover:bg-white/70 border border-transparent'
+                  }`}
+                >
+                  <span className="flex items-start gap-3">
+                    <Icon name={item.icon} className={`w-[18px] h-[18px] ${active ? 'text-emerald-700' : 'text-slate-500'}`} />
+                    <span>
+                      <span className="block leading-5">{item.label}</span>
+                      <span className="block mt-0.5 text-xs font-normal text-slate-500">{item.description}</span>
+                    </span>
+                  </span>
+                  {item.count ? <span className="text-xs font-medium text-amber-700">{item.count}</span> : null}
+                </button>
+              );
+            })}
+
+            <div className="pt-4 mt-4 border-t border-slate-200 space-y-1">
+              <Link href="/" target="_blank" className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-700 hover:bg-slate-100 ${focusRing}`}>
+                <Icon name="external" className="w-[18px] h-[18px] text-slate-500" />
+                Landing page
+              </Link>
+              <Link href="/dashboard" target="_blank" className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-700 hover:bg-slate-100 ${focusRing}`}>
+                <Icon name="users" className="w-[18px] h-[18px] text-slate-500" />
+                Portal nasabah
+              </Link>
             </div>
-            <button onClick={() => setIsAuthenticated(false)} className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all" style={{ color: 'rgba(248,113,113,0.7)' }}>
-              <IcLogout c="w-4 h-4" />
-              Keluar
+          </nav>
+
+          <div className="p-3 border-t border-slate-200 flex items-center justify-between gap-2">
+            <div className="min-w-0 px-2">
+              <p className="text-sm font-medium text-slate-900 truncate">Super Admin</p>
+              <p className="text-xs text-slate-500 truncate">admin@ecobank.id</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className={`p-2 rounded-lg text-slate-600 hover:text-red-700 hover:bg-red-50 ${focusRing}`}
+              title="Keluar"
+              aria-label="Keluar dari panel admin"
+            >
+              <Icon name="logout" />
             </button>
           </div>
         </div>
       </aside>
 
-      {/* ── MAIN CONTENT ── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto" ref={adminScrollRef}>
-
-        {/* Header */}
-        <header
-          className="sticky top-0 z-20 px-5 md:px-8 py-4 flex items-center justify-between transition-all duration-300"
-          style={adminScrolled ? {
-            background: 'rgba(255,255,255,0.97)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            borderBottom: '1px solid rgba(22,163,74,0.14)',
-            boxShadow: '0 2px 20px rgba(14,61,35,0.08)',
-          } : {
-            background: 'rgba(240,247,243,0.6)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            borderBottom: '1px solid rgba(22,163,74,0.08)',
-          }}
-        >
-          <div className="flex items-center gap-3">
+      {/* Konten */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 px-4 sm:px-6 min-h-16 py-2 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
             <button
-              className="p-2 rounded-xl transition-all flex items-center justify-center border border-emerald-900/15 bg-white/80 hover:bg-white text-emerald-800 shadow-xs active:scale-95"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              title={sidebarOpen ? "Tutup Sidebar (Tampilan Layar Penuh)" : "Buka Sidebar"}
-              aria-label="Toggle Sidebar"
+              className={`p-2 rounded-lg text-slate-600 hover:bg-slate-100 ${focusRing}`}
+              aria-label={sidebarOpen ? 'Tutup menu samping' : 'Buka menu samping'}
             >
-              <IcSidebar c="w-5 h-5 text-emerald-700" />
+              <Icon name="sidebar" />
             </button>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base md:text-lg font-bold" style={{ color: '#14532d' }}>{headerLabels[activeTab]}</h2>
-              </div>
-              <p className="text-xs hidden md:block" style={{ color: '#6b9e7a' }}>Panel kontrol administrator EcoBank</p>
+            <div className="min-w-0">
+              <h1 className="text-base font-semibold text-slate-900 truncate">{pageTitle[activeTab]}</h1>
+              <p className="hidden sm:block text-xs text-slate-600 truncate">{pageDescription[activeTab]}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <button className="p-2 rounded-xl transition-all flex items-center justify-center border border-emerald-900/15 bg-white/80 hover:bg-white text-emerald-800 shadow-xs active:scale-95" title="Keluar dari Admin Panel" aria-label="Logout Admin" onClick={() => setIsAuthenticated(false)}>
-              <IcLogout c="w-5 h-5" />
+
+          <div className="flex items-center gap-2">
+            {activeTab === 'overview' && (
+              <div className="hidden md:flex rounded-lg border border-slate-300 overflow-hidden text-sm" role="group" aria-label="Rentang waktu">
+                {(['today', '7d', '30d', 'year'] as TimeRange[]).map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setTimeRange(r)}
+                    aria-pressed={timeRange === r}
+                    className={`px-3 py-1.5 border-r last:border-r-0 border-slate-300 ${
+                      timeRange === r ? 'bg-emerald-700 text-white font-medium' : 'bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    {rangeLabel[r]}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <button onClick={handleRefresh} disabled={isRefreshing} className={`p-2 rounded-lg text-slate-600 hover:bg-slate-100 ${focusRing}`} title="Perbarui data" aria-label="Perbarui data">
+              <Icon name="refresh" className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </button>
+
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={() => setNotificationOpen(!notificationOpen)}
+                className={`p-2 rounded-lg text-slate-600 hover:bg-slate-100 relative ${focusRing}`}
+                aria-label={`Notifikasi, ${pendingCount} perlu verifikasi`}
+                aria-expanded={notificationOpen}
+              >
+                <Icon name="bell" />
+                {pendingCount > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500" />}
+              </button>
+
+              {notificationOpen && (
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg border border-slate-200 shadow-lg z-50">
+                  <p className="px-4 py-3 text-sm font-semibold border-b border-slate-200">Perlu verifikasi ({pendingCount})</p>
+                  <ul className="max-h-72 overflow-y-auto divide-y divide-slate-100">
+                    {transactions.filter((t) => t.status === 'pending').map((t) => (
+                      <li key={t.id} className="px-4 py-3 text-sm">
+                        <p className="font-medium text-slate-900">{t.userName}</p>
+                        <p className="text-slate-600">{t.category} · {t.weightOrUnit}</p>
+                        <div className="mt-2 flex gap-4 text-sm font-medium">
+                          <button onClick={() => decideTx(t.id, 'completed')} className="text-emerald-700 hover:underline">Verifikasi</button>
+                          <button onClick={() => decideTx(t.id, 'rejected')} className="text-slate-600 hover:underline">Tolak</button>
+                        </div>
+                      </li>
+                    ))}
+                    {pendingCount === 0 && <li className="px-4 py-6 text-sm text-slate-500 text-center">Semua setoran sudah diverifikasi.</li>}
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
         </header>
-        
-        <main className={`flex-1 p-5 md:p-8 w-full mx-auto transition-all duration-300 ${sidebarOpen ? 'max-w-7xl' : 'max-w-full px-6 md:px-12'}`}>
 
-          {/* ── OVERVIEW ── */}
+        <main className="flex-1 px-4 sm:px-6 lg:px-10 py-6 lg:py-8 max-w-7xl w-full mx-auto">
+          {/* ───────── RINGKASAN ───────── */}
           {activeTab === 'overview' && (
-            <div className="space-y-5">
-              {/* Stat cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                  { label: 'Total Nasabah', value: '12,980', sub: '+8.2% bulan ini', icon: <IcUsers c="w-5 h-5" />, accent: '#2563eb', accentBg: 'rgba(37,99,235,0.08)' },
-                  { label: 'Jenis Sampah', value: `${wasteTypes.length}`, sub: 'Kategori aktif', icon: <IcDatabase c="w-5 h-5" />, accent: '#16a34a', accentBg: 'rgba(22,163,74,0.08)' },
-                  { label: 'Sampah Terkumpul', value: '45.2 Ton', sub: '+12% dari target', icon: <IcLeaf c="w-5 h-5" />, accent: '#d97706', accentBg: 'rgba(217,119,6,0.08)' },
-                  { label: 'CO₂ Dikurangi', value: '89 Ton', sub: 'Dampak karbon', icon: <IcLeaf c="w-5 h-5" />, accent: '#059669', accentBg: 'rgba(5,150,105,0.08)' },
-                ].map((s) => (
-                  <div key={s.label} className="rounded-2xl p-5" style={{ background: 'white', border: '1px solid rgba(22,163,74,0.12)' }}>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-xs font-medium" style={{ color: '#6b9e7a' }}>{s.label}</p>
-                        <p className="text-2xl font-extrabold mt-1 tracking-tight" style={{ color: '#14532d' }}>{s.value}</p>
-                        <p className="text-[11px] mt-0.5 flex items-center gap-1" style={{ color: '#9db8a4' }}>
-                          <IcTrend c="w-3 h-3" />
-                          {s.sub}
-                        </p>
-                      </div>
-                      <div className="p-2.5 rounded-xl" style={{ background: s.accentBg, color: s.accent }}>{s.icon}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Two col */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                {/* Recent transactions */}
-                <div className="rounded-2xl p-6" style={{ background: 'white', border: '1px solid rgba(22,163,74,0.12)' }}>
-                  <h3 className="font-bold text-sm mb-4" style={{ color: '#14532d' }}>Transaksi Terbaru</h3>
-                  <div className="space-y-2.5">
-                    {[
-                      { name: 'Nasabah #204', action: 'Menyetor 4.5 kg Botol Plastik', pts: '+225', time: 'Baru saja', type: 'setor' },
-                      { name: 'Nasabah #089', action: 'Menukar 500 Poin ke GoFood', pts: '-500', time: '2 menit lalu', type: 'tukar' },
-                      { name: 'Nasabah #155', action: 'Menyetor 3.2 kg Kaleng Logam', pts: '+256', time: '8 menit lalu', type: 'setor' },
-                      { name: 'Nasabah #312', action: 'Menyetor 2.0 kg Kardus', pts: '+60', time: '15 menit lalu', type: 'setor' },
-                    ].map((tx, i) => (
-                      <div key={i} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: '#f8fdf9', border: '1px solid rgba(22,163,74,0.08)' }}>
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={tx.type === 'setor' ? { background: 'rgba(22,163,74,0.1)', color: '#16a34a' } : { background: 'rgba(217,119,6,0.1)', color: '#d97706' }}>
-                          <IcCheck c="w-4 h-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold truncate" style={{ color: '#14532d' }}>{tx.name} · {tx.action}</p>
-                          <p className="text-[10px]" style={{ color: '#9db8a4' }}>{tx.time}</p>
-                        </div>
-                        <span className="text-xs font-bold flex-shrink-0" style={{ color: tx.pts.startsWith('+') ? '#16a34a' : '#dc2626' }}>{tx.pts} Pts</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Mitra summary */}
-                <div className="rounded-2xl p-6" style={{ background: 'white', border: '1px solid rgba(22,163,74,0.12)' }}>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-sm" style={{ color: '#14532d' }}>Status Mitra</h3>
-                    <button onClick={() => setActiveTab('tracking')} className="text-xs font-semibold" style={{ color: '#16a34a' }}>Lihat peta</button>
-                  </div>
-                  <div className="space-y-2.5">
-                    {mitraData.slice(0, 5).map((m) => (
-                      <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: '#f8fdf9', border: '1px solid rgba(22,163,74,0.08)' }}>
-                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: m.status === 'Aktif' ? '#16a34a' : '#d97706' }} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold truncate" style={{ color: '#14532d' }}>{m.name}</p>
-                          <p className="text-[10px]" style={{ color: '#9db8a4' }}>{m.area}</p>
-                        </div>
-                        <span className="text-[11px] font-semibold" style={{ color: m.status === 'Aktif' ? '#16a34a' : '#d97706' }}>{m.status}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── TRACKING ── */}
-          {activeTab === 'tracking' && (
-            <div className="space-y-5">
-              <div className="flex items-center gap-3">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ background: 'rgba(22,163,74,0.1)', color: '#16a34a', border: '1px solid rgba(22,163,74,0.2)' }}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                  Live · Pembaruan Real-time
-                </span>
-                <span className="text-xs" style={{ color: '#6b9e7a' }}>{mitraData.filter(m => m.status === 'Aktif').length} mitra aktif · {activeUsers.length} nasabah online</span>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                {/* Map */}
-                <div className="lg:col-span-2 rounded-2xl overflow-hidden" style={{ background: 'white', border: '1px solid rgba(22,163,74,0.12)' }}>
-                  <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(22,163,74,0.08)' }}>
-                    <div>
-                      <h3 className="font-bold text-sm" style={{ color: '#14532d' }}>Peta Sebaran Mitra & Nasabah</h3>
-                      <p className="text-xs mt-0.5" style={{ color: '#6b9e7a' }}>Kawasan Banda Aceh & Sekitarnya</p>
-                    </div>
-                    <div className="flex items-center gap-4 text-[11px]">
-                      <span className="flex items-center gap-1.5" style={{ color: '#16a34a' }}>
-                        <span className="w-3 h-3 rounded-full inline-block" style={{ background: '#16a34a' }} />
-                        Mitra Aktif
-                      </span>
-                      <span className="flex items-center gap-1.5" style={{ color: '#d97706' }}>
-                        <span className="w-3 h-3 rounded-full inline-block" style={{ background: '#d97706' }} />
-                        Mitra Libur
-                      </span>
-                      <span className="flex items-center gap-1.5" style={{ color: '#2563eb' }}>
-                        <span className="w-3 h-3 rounded-full inline-block" style={{ background: '#2563eb' }} />
-                        Nasabah
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* SVG Map */}
-                  <div className="relative" style={{ background: '#edf7f1', height: 380 }}>
-                    {/* Road grid lines */}
-                    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                      {/* Roads */}
-                      <line x1="0" y1="50" x2="100" y2="50" stroke="rgba(22,163,74,0.15)" strokeWidth="0.5" />
-                      <line x1="50" y1="0" x2="50" y2="100" stroke="rgba(22,163,74,0.15)" strokeWidth="0.5" />
-                      <line x1="0" y1="30" x2="100" y2="30" stroke="rgba(22,163,74,0.08)" strokeWidth="0.3" />
-                      <line x1="0" y1="70" x2="100" y2="70" stroke="rgba(22,163,74,0.08)" strokeWidth="0.3" />
-                      <line x1="30" y1="0" x2="30" y2="100" stroke="rgba(22,163,74,0.08)" strokeWidth="0.3" />
-                      <line x1="70" y1="0" x2="70" y2="100" stroke="rgba(22,163,74,0.08)" strokeWidth="0.3" />
-                      {/* River / coast */}
-                      <path d="M0,25 Q10,30 5,40 Q0,50 10,55 Q20,60 15,70" fill="none" stroke="rgba(37,99,235,0.2)" strokeWidth="1.5" />
-                      {/* Area blobs */}
-                      <ellipse cx="30" cy="38" rx="20" ry="14" fill="rgba(22,163,74,0.06)" />
-                      <ellipse cx="62" cy="58" rx="22" ry="16" fill="rgba(22,163,74,0.06)" />
-                    </svg>
-
-                    {/* Mitra markers */}
-                    {mitraData.map((m) => (
-                      <div
-                        key={m.id}
-                        className="absolute group cursor-pointer"
-                        style={{ left: `${m.x}%`, top: `${m.y}%`, transform: 'translate(-50%, -100%)' }}
-                      >
-                        {/* Ping animation for active */}
-                        {m.status === 'Aktif' && (
-                          <span className="absolute inset-0 rounded-full animate-ping" style={{ background: 'rgba(22,163,74,0.3)', width: 24, height: 24 }} />
-                        )}
-                        <div className="relative flex flex-col items-center">
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center shadow-md" style={{ background: m.status === 'Aktif' ? '#16a34a' : '#d97706', border: '2px solid white' }}>
-                            <IcPin c="w-3 h-3 text-white" />
-                          </div>
-                          <div className="w-0 h-0" style={{ borderLeft: '4px solid transparent', borderRight: '4px solid transparent', borderTop: `6px solid ${m.status === 'Aktif' ? '#16a34a' : '#d97706'}` }} />
-                        </div>
-                        {/* Tooltip */}
-                        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 w-44">
-                          <div className="p-2 rounded-lg shadow-lg text-[10px]" style={{ background: '#14532d', color: 'white' }}>
-                            <p className="font-semibold">{m.name}</p>
-                            <p style={{ color: '#86efac' }}>{m.active} nasabah aktif</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-
-                    {/* User markers */}
-                    {activeUsers.map((u, i) => (
-                      <div
-                        key={i}
-                        className="absolute w-4 h-4 rounded-full"
-                        style={{ left: `${u.x}%`, top: `${u.y}%`, transform: 'translate(-50%,-50%)', background: '#2563eb', border: '2px solid white', boxShadow: '0 0 6px rgba(37,99,235,0.5)' }}
-                      />
-                    ))}
-
-                    {/* Map label */}
-                    <div className="absolute bottom-3 right-3 px-2 py-1 rounded-lg text-[10px] font-medium" style={{ background: 'rgba(255,255,255,0.8)', color: '#14532d' }}>
-                      Kawasan Banda Aceh
-                    </div>
-                  </div>
-                </div>
-
-                {/* Mitra list */}
-                <div className="rounded-2xl p-5 overflow-auto" style={{ background: 'white', border: '1px solid rgba(22,163,74,0.12)', maxHeight: 460 }}>
-                  <h3 className="font-bold text-sm mb-4" style={{ color: '#14532d' }}>Daftar Mitra</h3>
-                  <div className="space-y-3">
-                    {mitraData.map((m) => (
-                      <div key={m.id} className="p-3 rounded-xl" style={{ background: '#f8fdf9', border: '1px solid rgba(22,163,74,0.08)' }}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-mono" style={{ color: '#9db8a4' }}>{m.id}</span>
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={m.status === 'Aktif' ? { background: 'rgba(22,163,74,0.1)', color: '#16a34a' } : { background: 'rgba(217,119,6,0.1)', color: '#d97706' }}>
-                            {m.status}
-                          </span>
-                        </div>
-                        <p className="text-xs font-semibold" style={{ color: '#14532d' }}>{m.name}</p>
-                        <p className="text-[10px] mt-0.5" style={{ color: '#9db8a4' }}>{m.area}</p>
-                        <p className="text-[11px] font-semibold mt-1.5" style={{ color: '#16a34a' }}>{m.active} nasabah aktif</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── ANALITIK ── */}
-          {activeTab === 'analitik' && (
-            <div className="space-y-5">
-              {/* Summary impact cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                  { label: 'Pohon Setara', value: '890', sub: 'Pohon dewasa/tahun', accent: '#16a34a', accentBg: 'rgba(22,163,74,0.08)' },
-                  { label: 'Km Mobil Hemat', value: '534K', sub: 'Setara emisi kendaraan', accent: '#2563eb', accentBg: 'rgba(37,99,235,0.08)' },
-                  { label: 'Poin Tersalurkan', value: '1.45 M', sub: 'Total reward nasabah', accent: '#d97706', accentBg: 'rgba(217,119,6,0.08)' },
-                  { label: 'Efisiensi Target', value: '94%', sub: 'Realisasi vs target', accent: '#059669', accentBg: 'rgba(5,150,105,0.08)' },
-                ].map((s) => (
-                  <div key={s.label} className="rounded-2xl p-5" style={{ background: 'white', border: '1px solid rgba(22,163,74,0.12)' }}>
-                    <div className="inline-flex p-2 rounded-lg mb-3" style={{ background: s.accentBg, color: s.accent }}>
-                      <IcLeaf c="w-4 h-4" />
-                    </div>
-                    <p className="text-xl font-extrabold tracking-tight" style={{ color: '#14532d' }}>{s.value}</p>
-                    <p className="text-xs font-semibold mt-0.5" style={{ color: '#14532d' }}>{s.label}</p>
-                    <p className="text-[11px] mt-0.5" style={{ color: '#9db8a4' }}>{s.sub}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Bar chart */}
-              <div className="rounded-2xl p-6" style={{ background: 'white', border: '1px solid rgba(22,163,74,0.12)' }}>
-                <div className="flex items-center justify-between mb-6">
+            <div className="space-y-6">
+              <section aria-label="Ringkasan angka" className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                   <div>
-                    <h3 className="font-bold text-sm" style={{ color: '#14532d' }}>Tren Pengumpulan Sampah</h3>
-                    <p className="text-xs mt-0.5" style={{ color: '#6b9e7a' }}>Volume bulanan (kg) — 6 bulan terakhir</p>
+                    <h2 className="text-base font-semibold text-slate-900">Kinerja EcoBank</h2>
+                    <p className="text-sm text-slate-600 mt-0.5">Angka utama untuk periode yang dipilih.</p>
                   </div>
-                </div>
-                <div className="flex items-end gap-3 h-44">
-                  {monthlyData.map((d) => {
-                    const height = (d.kg / maxKg) * 100;
-                    return (
-                      <div key={d.month} className="flex-1 flex flex-col items-center gap-1 group">
-                        <span className="text-[10px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: '#16a34a' }}>{d.kg.toLocaleString()}</span>
-                        <div className="w-full rounded-t-lg relative overflow-hidden transition-all" style={{ height: `${height}%`, background: 'rgba(22,163,74,0.15)', minHeight: 8 }}>
-                          <div className="absolute inset-x-0 bottom-0 rounded-t-lg" style={{ height: '60%', background: '#16a34a' }} />
-                        </div>
-                        <span className="text-[10px] font-medium" style={{ color: '#9db8a4' }}>{d.month}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Two more charts */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* CO2 reduction */}
-                <div className="rounded-2xl p-6" style={{ background: 'white', border: '1px solid rgba(22,163,74,0.12)' }}>
-                  <h3 className="font-bold text-sm mb-4" style={{ color: '#14532d' }}>Reduksi CO₂ (Ton/bulan)</h3>
-                  <div className="space-y-2.5">
-                    {monthlyData.map((d) => (
-                      <div key={d.month} className="flex items-center gap-3">
-                        <span className="text-xs w-8 text-right flex-shrink-0" style={{ color: '#9db8a4' }}>{d.month}</span>
-                        <div className="flex-1 h-6 rounded-lg overflow-hidden" style={{ background: 'rgba(37,99,235,0.08)' }}>
-                          <div className="h-full rounded-lg flex items-center px-2" style={{ width: `${(d.co2 / 12) * 100}%`, background: 'rgba(37,99,235,0.3)' }}>
-                            <span className="text-[10px] font-bold" style={{ color: '#1d4ed8' }}>{d.co2}</span>
-                          </div>
-                        </div>
-                      </div>
+                  <div className="md:hidden flex rounded-lg border border-slate-300 overflow-hidden text-sm w-fit">
+                    {(['today', '7d', '30d', 'year'] as TimeRange[]).map((r) => (
+                      <button
+                        key={r}
+                        onClick={() => setTimeRange(r)}
+                        aria-pressed={timeRange === r}
+                        className={`px-3 py-1.5 border-r last:border-r-0 border-slate-300 ${timeRange === r ? 'bg-emerald-700 text-white font-medium' : 'bg-white text-slate-700'}`}
+                      >
+                        {rangeLabel[r]}
+                      </button>
                     ))}
                   </div>
                 </div>
-
-                {/* Nasabah growth */}
-                <div className="rounded-2xl p-6" style={{ background: 'white', border: '1px solid rgba(22,163,74,0.12)' }}>
-                  <h3 className="font-bold text-sm mb-4" style={{ color: '#14532d' }}>Pertumbuhan Nasabah</h3>
-                  <div className="space-y-2.5">
-                    {monthlyData.map((d) => (
-                      <div key={d.month} className="flex items-center gap-3">
-                        <span className="text-xs w-8 text-right flex-shrink-0" style={{ color: '#9db8a4' }}>{d.month}</span>
-                        <div className="flex-1 h-6 rounded-lg overflow-hidden" style={{ background: 'rgba(22,163,74,0.06)' }}>
-                          <div className="h-full rounded-lg flex items-center px-2" style={{ width: `${(d.nasabah / 1500) * 100}%`, background: 'rgba(22,163,74,0.2)' }}>
-                            <span className="text-[10px] font-bold" style={{ color: '#16a34a' }}>{d.nasabah.toLocaleString()}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Waste breakdown */}
-              <div className="rounded-2xl p-6" style={{ background: 'white', border: '1px solid rgba(22,163,74,0.12)' }}>
-                <h3 className="font-bold text-sm mb-4" style={{ color: '#14532d' }}>Komposisi Jenis Sampah</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <dl className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                   {[
-                    { label: 'Plastik', pct: 42, color: '#16a34a' },
-                    { label: 'Kertas', pct: 28, color: '#2563eb' },
-                    { label: 'Logam', pct: 20, color: '#d97706' },
-                    { label: 'Kaca', pct: 10, color: '#7c3aed' },
-                  ].map((w) => (
-                    <div key={w.label} className="p-4 rounded-xl" style={{ background: '#f8fdf9', border: '1px solid rgba(22,163,74,0.08)' }}>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-semibold" style={{ color: '#14532d' }}>{w.label}</span>
-                        <span className="text-xs font-bold" style={{ color: w.color }}>{w.pct}%</span>
-                      </div>
-                      <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.05)' }}>
-                        <div className="h-full rounded-full" style={{ width: `${w.pct}%`, background: w.color }} />
-                      </div>
+                    { label: 'Sampah terkumpul', value: fmtMass(stats.kg), note: `${stats.delta} ${stats.vs}` },
+                    { label: 'Reduksi karbon (CO₂)', value: fmtMass(stats.co2), note: 'Dihitung dari faktor emisi per kategori' },
+                    { label: 'Nasabah aktif', value: fmtNum(stats.nasabah), note: `Periode: ${rangeLabel[timeRange].toLowerCase()}` },
+                    { label: 'Perlu verifikasi', value: String(pendingCount), note: pendingCount ? 'Menunggu petugas' : 'Tidak ada antrean' },
+                  ].map((s) => (
+                    <div key={s.label} className="rounded-xl bg-[#f6f9f6] border border-slate-100 px-4 py-4">
+                      <dt className="text-sm text-slate-600">{s.label}</dt>
+                      <dd className="mt-2 text-2xl sm:text-3xl font-semibold tabular-nums text-slate-900">{s.value}</dd>
+                      <dd className="mt-1 text-sm text-slate-600 leading-relaxed">{s.note}</dd>
                     </div>
                   ))}
-                </div>
-              </div>
-            </div>
-          )}
+                </dl>
+              </section>
 
-          {/* ── MASTER DATA ── */}
-          {activeTab === 'masterdata' && (
-            <div className="space-y-5">
-              <div className="rounded-2xl overflow-hidden" style={{ background: 'white', border: '1px solid rgba(22,163,74,0.12)' }}>
-                <div className="px-6 py-5 flex items-center justify-between" style={{ borderBottom: '1px solid rgba(22,163,74,0.08)' }}>
+              {/* Transaksi */}
+              <section aria-labelledby="tx-title" className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-4">
                   <div>
-                    <h3 className="font-bold text-sm" style={{ color: '#14532d' }}>Master Data Jenis Sampah</h3>
-                    <p className="text-xs mt-0.5" style={{ color: '#6b9e7a' }}>Data dimuat dari <code className="font-mono" style={{ color: '#16a34a' }}>content/wasteTypes.json</code></p>
+                    <h2 id="tx-title" className="text-lg font-semibold text-slate-900">Transaksi terbaru</h2>
+                    <p className="text-sm text-slate-600 mt-0.5">Verifikasi setoran setelah sampah ditimbang.</p>
                   </div>
-                  <span className="px-3 py-1 rounded-full text-xs font-bold" style={{ background: 'rgba(22,163,74,0.08)', color: '#16a34a', border: '1px solid rgba(22,163,74,0.15)' }}>
-                    {wasteTypes.length} Jenis Aktif
-                  </span>
+                  <button onClick={exportTransactions} className={btnSecondary}>
+                    <Icon name="download" /> Ekspor CSV
+                  </button>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid rgba(22,163,74,0.08)', background: '#f8fdf9' }}>
-                        {['ID Sampah', 'Nama Jenis Sampah', 'Poin / kg', 'Reduksi CO₂ / kg', 'Status'].map((h, i) => (
-                          <th key={h} className={`px-5 py-3 font-semibold text-xs ${i === 4 ? 'text-right' : ''}`} style={{ color: '#6b9e7a' }}>{h}</th>
-                        ))}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-3">
+                  <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter transaksi">
+                    {filterTabs.map((f) => (
+                      <button
+                        key={f.key}
+                        onClick={() => setTxFilter(f.key)}
+                        aria-pressed={txFilter === f.key}
+                        className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${focusRing} ${
+                          txFilter === f.key ? 'bg-slate-900 text-white border-slate-900 font-medium' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="relative lg:w-80">
+                    <Icon name="search" className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="search"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Cari nama, ID, atau jenis sampah"
+                      aria-label="Cari transaksi"
+                      className={`${inputCls} pl-9 py-2`}
+                    />
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50/80">
+                      <tr className="text-slate-600 border-b border-slate-200">
+                        <th className="py-3 pr-4 font-medium">Nasabah</th>
+                        <th className="py-3 pr-4 font-medium">Transaksi</th>
+                        <th className="py-3 pr-4 font-medium hidden md:table-cell">Lokasi</th>
+                        <th className="py-3 pr-4 font-medium text-right">Poin</th>
+                        <th className="py-3 font-medium text-right">Status</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {wasteTypes.map((item: { id: string; nama?: string; name?: string; poinPerKg: number; emisiPerKg: number }, idx: number) => (
-                        <tr key={item.id} style={{ borderBottom: idx < wasteTypes.length - 1 ? '1px solid rgba(22,163,74,0.06)' : 'none' }}>
-                          <td className="px-5 py-3.5 font-mono text-xs" style={{ color: '#9db8a4' }}>{item.id}</td>
-                          <td className="px-5 py-3.5">
-                            <span className="font-semibold" style={{ color: '#14532d' }}>{item.nama || item.name || item.id}</span>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredTransactions.map((tx) => (
+                        <tr key={tx.id} className="align-top">
+                          <td className="py-3.5 pr-4">
+                            <p className="font-medium text-slate-900">{tx.userName}</p>
+                            <p className="text-slate-500">{tx.userId} · {tx.id}</p>
                           </td>
-                          <td className="px-5 py-3.5 font-semibold" style={{ color: '#16a34a' }}>+{item.poinPerKg} Poin</td>
-                          <td className="px-5 py-3.5 font-semibold" style={{ color: '#2563eb' }}>{item.emisiPerKg} kg CO₂</td>
-                          <td className="px-5 py-3.5 text-right">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: 'rgba(22,163,74,0.08)', color: '#16a34a' }}>
-                              <IcCheck c="w-3 h-3" />
-                              Aktif
-                            </span>
+                          <td className="py-3.5 pr-4">
+                            <p className="text-slate-900">{tx.category}</p>
+                            <p className="text-slate-500">{tx.type === 'setor' ? 'Setoran' : 'Penukaran'} · {tx.weightOrUnit} · {tx.time}</p>
+                          </td>
+                          <td className="py-3.5 pr-4 text-slate-700 hidden md:table-cell">{tx.location}</td>
+                          <td className={`py-3.5 pr-4 text-right tabular-nums font-medium ${tx.status === 'rejected' ? 'text-slate-400 line-through' : tx.points > 0 ? 'text-emerald-700' : 'text-slate-900'}`}>
+                            {tx.points > 0 ? `+${tx.points}` : tx.points}
+                          </td>
+                          <td className="py-3.5 text-right whitespace-nowrap">
+                            {tx.status === 'pending' ? (
+                              <span className="inline-flex gap-2">
+                                <button onClick={() => decideTx(tx.id, 'completed')} className={`px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-medium ${focusRing}`}>
+                                  Verifikasi
+                                </button>
+                                <button onClick={() => decideTx(tx.id, 'rejected')} className={`px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-medium ${focusRing}`}>
+                                  Tolak
+                                </button>
+                              </span>
+                            ) : tx.status === 'completed' ? (
+                              <span className="inline-flex items-center gap-1.5 text-slate-700">
+                                <span className="w-2 h-2 rounded-full bg-emerald-600" /> Selesai
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 text-slate-500">
+                                <span className="w-2 h-2 rounded-full bg-slate-400" /> Ditolak
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredTransactions.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="py-10 text-center text-slate-500">
+                            Tidak ada transaksi yang cocok. Ubah filter atau hapus kata pencarian.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-sm text-slate-500">Menampilkan {filteredTransactions.length} dari {transactions.length} transaksi</p>
+              </section>
+
+              {/* Mitra */}
+              <section aria-labelledby="mitra-title" className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+                <div className="flex items-end justify-between gap-4 mb-4">
+                  <div>
+                    <h2 id="mitra-title" className="text-lg font-semibold text-slate-900">Status mitra bank sampah</h2>
+                    <p className="text-sm text-slate-600 mt-0.5">
+                      {activeMitra.length} dari {mitra.length} unit aktif · pilih unit untuk alamat, jadwal, dan rute Google Maps.
+                    </p>
+                  </div>
+                  <button onClick={() => setActiveTab('tracking')} className={btnSecondary}>
+                    <Icon name="pin" /> Lihat peta
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50/80">
+                      <tr className="text-slate-600 border-b border-slate-200">
+                        <th className="py-3 pr-4 font-medium">Mitra</th>
+                        <th className="py-3 pr-4 font-medium hidden md:table-cell">Jam operasional</th>
+                        <th className="py-3 pr-4 font-medium hidden lg:table-cell">Alamat</th>
+                        <th className="py-3 font-medium text-right">Status unit</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {mitra.map((m) => (
+                        <tr
+                          key={m.id}
+                          tabIndex={0}
+                          onClick={() => {
+                            setSelectedMitraId(m.id);
+                            setMitraMapView('interactive');
+                            setActiveTab('tracking');
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              setSelectedMitraId(m.id);
+                              setMitraMapView('interactive');
+                              setActiveTab('tracking');
+                            }
+                          }}
+                          className={`cursor-pointer hover:bg-slate-50 ${focusRing}`}
+                        >
+                          <td className="py-3.5 pr-4">
+                            <p className="font-medium text-slate-900">{m.name}</p>
+                            <p className="text-slate-500">{m.district}</p>
+                          </td>
+                          <td className="py-3.5 pr-4 text-slate-700 hidden md:table-cell">
+                            {m.openingHours[0]}
+                            {m.openingHours.length > 1 && <span className="block text-xs text-slate-500">+{m.openingHours.length - 1} jadwal lainnya</span>}
+                          </td>
+                          <td className="py-3.5 pr-4 text-slate-700 hidden lg:table-cell">{m.address}</td>
+                          <td className="py-3.5 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const next = m.status === 'Aktif' ? 'Libur' : 'Aktif';
+                                  updateMitra(m.id, { status: next });
+                                  setToast(next === 'Libur' ? `${m.name} ditandai libur` : `${m.name} dibuka kembali`);
+                                }}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors border ${
+                                  m.status === 'Aktif'
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                                    : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                                }`}
+                                title="Klik untuk mengubah status unit"
+                              >
+                                <span className={`w-1.5 h-1.5 rounded-full ${m.status === 'Aktif' ? 'bg-emerald-600' : 'bg-amber-500'}`} />
+                                {m.status}
+                              </button>
+                              <a
+                                href={getGoogleMapsSearchUrl(m)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="p-1 text-slate-400 hover:text-emerald-700 hover:bg-slate-100 rounded-md"
+                                title="Buka di Google Maps"
+                                aria-label={`Buka ${m.name} di Google Maps`}
+                              >
+                                <Icon name="external" className="w-3.5 h-3.5" />
+                              </a>
+                            </div>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+                <p className="mt-2 text-sm text-slate-600">Pilih unit untuk melihat jam operasional dan alamat lengkap. Konfirmasikan jenis material kepada pengelola.</p>
+              </section>
+            </div>
+          )}
+
+          {/* ───────── NASABAH (PENGGUNA ECOBANK) ───────── */}
+          {activeTab === 'nasabah' && (
+            <div className="space-y-6">
+              {/* Header KPI Nasabah */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Nasabah</p>
+                  <p className="text-2xl font-bold tracking-tight text-slate-900 mt-1">{fmtNum(nasabah.length)}</p>
+                  <p className="text-xs text-emerald-700 mt-1 font-medium flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                    {nasabah.filter((n) => n.status === 'Aktif').length} akun aktif
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Poin Beredar</p>
+                  <p className="text-2xl font-bold tracking-tight text-slate-900 mt-1">
+                    {fmtNum(nasabah.reduce((acc, curr) => acc + curr.poin, 0))} Pts
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">Siap ditukar reward</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Sampah Terkumpul</p>
+                  <p className="text-2xl font-bold tracking-tight text-slate-900 mt-1">
+                    {nasabah.reduce((acc, curr) => acc + curr.totalKg, 0).toFixed(1)} kg
+                  </p>
+                  <p className="text-xs text-emerald-700 mt-1 font-medium">Dari {nasabah.reduce((acc, curr) => acc + curr.frekuensi, 0)}x setoran</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Rata-rata Saldo</p>
+                  <p className="text-2xl font-bold tracking-tight text-slate-900 mt-1">
+                    {Math.round(nasabah.reduce((acc, curr) => acc + curr.poin, 0) / Math.max(1, nasabah.length))} Pts
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">Per akun nasabah</p>
+                </div>
               </div>
 
-              {/* Quick links */}
-              <div className="rounded-2xl p-6" style={{ background: 'white', border: '1px solid rgba(22,163,74,0.12)' }}>
-                <h3 className="font-bold text-sm mb-4" style={{ color: '#14532d' }}>Navigasi Cepat</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {[
-                    { href: '/', label: 'Landing Page', desc: 'Halaman publik utama', icon: <IcHome c="w-4 h-4" /> },
-                    { href: '/login', label: 'Login Nasabah', desc: 'Halaman masuk pengguna', icon: <IcLock c="w-4 h-4" /> },
-                    { href: '/dashboard', label: 'Dashboard User', desc: 'Panel nasabah EcoBank', icon: <IcChart c="w-4 h-4" /> },
-                    { href: '/dropoff', label: 'Halaman Dropoff', desc: 'Form setoran sampah', icon: <IcDatabase c="w-4 h-4" /> },
-                  ].map((link) => (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      className="p-4 rounded-xl transition-all group flex flex-col gap-2"
-                      style={{ background: '#f8fdf9', border: '1px solid rgba(22,163,74,0.1)' }}
+              {/* Table section */}
+              <section aria-labelledby="nasabah-title" className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-5">
+                  <div>
+                    <h2 id="nasabah-title" className="text-lg font-semibold text-slate-900">Direktori Nasabah</h2>
+                    <p className="text-sm text-slate-600 mt-0.5">
+                      Kelola profil nasabah, saldo poin, dan verifikasi status akun pengguna.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={exportNasabah}
+                      className={btnSecondary}
                     >
-                      <span className="inline-flex p-2 rounded-lg" style={{ background: 'rgba(22,163,74,0.08)', color: '#16a34a' }}>{link.icon}</span>
-                      <div>
-                        <p className="font-semibold text-xs" style={{ color: '#14532d' }}>{link.label}</p>
-                        <p className="text-[10px] mt-0.5" style={{ color: '#9db8a4' }}>{link.desc}</p>
-                      </div>
-                    </Link>
-                  ))}
+                      <Icon name="download" />
+                      Ekspor CSV
+                    </button>
+                    <button
+                      type="button"
+                      onClick={openAddNasabahForm}
+                      className={btnPrimary}
+                    >
+                      <Icon name="plus" />
+                      Tambah Nasabah
+                    </button>
+                  </div>
                 </div>
+
+                {/* Filters & Search */}
+                <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                  <div className="relative flex-1">
+                    <Icon name="search" className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="search"
+                      value={nasabahSearch}
+                      onChange={(e) => setNasabahSearch(e.target.value)}
+                      placeholder="Cari nama, ID nasabah, email, no HP, atau kecamatan..."
+                      className={`${inputCls} pl-9`}
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                    {(
+                      [
+                        { key: 'all', label: 'Semua' },
+                        { key: 'Level 1', label: 'Eco Starter' },
+                        { key: 'Level 2', label: 'Green Pioneer' },
+                        { key: 'Level 3', label: 'Planet Guardian' },
+                        { key: 'Nonaktif', label: 'Nonaktif' },
+                      ] as const
+                    ).map((lvl) => (
+                      <button
+                        key={lvl.key}
+                        onClick={() => setNasabahLevelFilter(lvl.key)}
+                        className={`px-3 py-2 rounded-lg font-medium transition-colors border ${
+                          nasabahLevelFilter === lvl.key
+                            ? 'bg-emerald-800 text-white border-emerald-800 shadow-xs'
+                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        {lvl.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Table */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50/80">
+                      <tr className="text-slate-600 border-b border-slate-200">
+                        <th className="py-3 px-4 font-medium">Nasabah</th>
+                        <th className="py-3 px-4 font-medium hidden md:table-cell">Kontak & Lokasi</th>
+                        <th className="py-3 px-4 font-medium hidden sm:table-cell">Level Akun</th>
+                        <th className="py-3 px-4 font-medium text-right">Akumulasi Setor</th>
+                        <th className="py-3 px-4 font-medium text-right">Saldo Poin</th>
+                        <th className="py-3 px-4 font-medium text-center">Status</th>
+                        <th className="py-3 px-4 font-medium text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredNasabah.map((n) => (
+                        <tr
+                          key={n.id}
+                          className="hover:bg-slate-50/80 transition-colors cursor-pointer"
+                          onClick={() => setSelectedNasabah(n)}
+                        >
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center flex-shrink-0 text-xs">
+                                {n.nama.split(' ').map((x) => x[0]).slice(0, 2).join('')}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-medium text-slate-900 truncate">{n.nama}</p>
+                                <p className="text-xs font-mono text-slate-400">{n.id}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 hidden md:table-cell">
+                            <p className="text-slate-700">{n.email}</p>
+                            <p className="text-xs text-slate-500">{n.telepon} &bull; {n.kecamatan}</p>
+                          </td>
+                          <td className="py-3 px-4 hidden sm:table-cell">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${
+                              n.level.includes('Level 3')
+                                ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                : n.level.includes('Level 2')
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-slate-100 text-slate-700 border-slate-200'
+                            }`}>
+                              {n.level.split(' · ')[1] || n.level}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <p className="font-semibold text-slate-900 tabular-nums">{n.totalKg} kg</p>
+                            <p className="text-xs text-slate-500">{n.frekuensi}x setor</p>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="font-bold text-emerald-700 font-mono text-sm tabular-nums">
+                              +{fmtNum(n.poin)} Pts
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const nextStatus = n.status === 'Aktif' ? 'Nonaktif' : 'Aktif';
+                                updateNasabahStatus(n.id, nextStatus);
+                              }}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors ${
+                                n.status === 'Aktif'
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                                  : 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200'
+                              }`}
+                              title="Klik untuk mengubah status aktif / nonaktif"
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${n.status === 'Aktif' ? 'bg-emerald-600' : 'bg-slate-400'}`} />
+                              {n.status}
+                            </button>
+                          </td>
+                          <td className="py-3 px-4 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditNasabahForm(n);
+                                }}
+                                className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                                title="Ubah data nasabah"
+                              >
+                                <Icon name="pencil" className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedNasabah(n);
+                                }}
+                                className="px-2 py-1 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-medium"
+                              >
+                                Rincian
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {filteredNasabah.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="py-12 text-center text-slate-500">
+                            Tidak ada nasabah yang sesuai dengan kata kunci pencarian atau filter ini.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-slate-500 mt-3">
+                  <span>Menampilkan {filteredNasabah.length} dari {nasabah.length} nasabah terdaftar</span>
+                  <span>Diperbarui otomatis secara lokal</span>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* ───────── LOKASI MITRA ───────── */}
+          {activeTab === 'tracking' && (
+            <div className="space-y-5">
+              <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm" aria-label="Pilih tampilan peta mitra">
+                <p className="mb-3 text-sm font-medium text-slate-700">Pilih tampilan peta</p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="group" aria-label="Tampilan peta lokasi mitra">
+                  <button
+                    type="button"
+                    aria-pressed={mitraMapView === 'interactive'}
+                    onClick={() => setMitraMapView('interactive')}
+                    className={mitraMapView === 'interactive' ? btnPrimary : btnSecondary}
+                  >
+                    <Icon name="navigation" />
+                    Peta interaktif
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={mitraMapView === 'overview'}
+                    onClick={() => setMitraMapView('overview')}
+                    className={mitraMapView === 'overview' ? btnPrimary : btnSecondary}
+                  >
+                    <Icon name="pin" />
+                    Ikhtisar semua pin
+                  </button>
+                </div>
+              </section>
+
+              <div className="grid grid-cols-1 lg:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.4fr)] gap-5 items-start">
+              <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm" aria-labelledby="mitra-list-title">
+                <div className="mb-5">
+                  <h2 id="mitra-list-title" className="text-lg font-semibold text-slate-900">Daftar unit bank sampah</h2>
+                  <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                    {mitra.length} lokasi terdaftar. Pilih nama unit untuk melihat informasi lengkap.
+                  </p>
+                </div>
+
+                <div className="space-y-5">
+                  {[...new Set(mitra.map((m) => m.district))].map((district) => {
+                    const districtMitra = mitra.filter((m) => m.district === district);
+                    return (
+                      <section key={district} aria-label={district}>
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <h3 className="text-sm font-semibold text-slate-700">{district}</h3>
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                            {districtMitra.length} unit
+                          </span>
+                        </div>
+                        <ul className="space-y-1.5">
+                          {districtMitra.map((m) => {
+                            const markerNumber = mitraLocations.findIndex((location) => location.id === m.id) + 1;
+                            const selected = m.id === selectedMitraId;
+                            return (
+                              <li
+                                key={m.id}
+                                id={`mitra-${m.id}`}
+                                className={`rounded-xl border transition-colors ${
+                                  selected ? 'border-emerald-200 bg-emerald-50' : 'border-transparent hover:border-slate-200 hover:bg-slate-50'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 p-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedMitraId(m.id);
+                                      setMitraMapView('interactive');
+                                    }}
+                                    aria-pressed={selected}
+                                    className={`min-w-0 flex-1 rounded-lg px-2 py-2 text-left ${focusRing}`}
+                                  >
+                                    <span className="flex items-start gap-2 text-sm font-semibold leading-snug text-slate-900">
+                                      <span aria-hidden="true" className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">
+                                        {markerNumber}
+                                      </span>
+                                      <span>{m.name}</span>
+                                    </span>
+                                    <span className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${
+                                      m.status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                                    }`}>
+                                      <span className={`h-1.5 w-1.5 rounded-full ${m.status === 'Aktif' ? 'bg-emerald-600' : 'bg-amber-500'}`} />
+                                      {m.status}
+                                    </span>
+                                  </button>
+                                  <a
+                                    href={getGoogleMapsSearchUrl(m)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`shrink-0 rounded-lg border border-slate-200 bg-white p-2.5 text-slate-600 hover:border-emerald-200 hover:text-emerald-800 ${focusRing}`}
+                                    title={`Buka ${m.name} di Google Maps`}
+                                    aria-label={`Buka ${m.name} di Google Maps`}
+                                  >
+                                    <Icon name="external" className="h-4 w-4" />
+                                  </a>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </section>
+                    );
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={resetMitraData}
+                  className={`mt-5 text-sm text-slate-600 underline underline-offset-2 hover:text-slate-900 ${focusRing}`}
+                  title="Kembalikan status unit ke kondisi awal"
+                >
+                  Reset status unit
+                </button>
+              </section>
+
+              <div className="space-y-5">
+                {mitraMapView === 'interactive' ? (
+                  <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm" aria-labelledby="selected-map-title">
+                  <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <h2 id="selected-map-title" className="text-lg font-semibold text-slate-900">Peta Google Maps interaktif</h2>
+                      <p className="mt-1 text-sm leading-relaxed text-slate-600 break-words">
+                        {selectedMitra
+                          ? `${selectedMitra.name} · peta akan berpindah saat unit lain dipilih dari daftar.`
+                          : 'Pilih nama unit dari daftar untuk menampilkan lokasinya di Google Maps.'}
+                      </p>
+                    </div>
+                    {selectedMitra && (
+                      <a
+                        href={getGoogleMapsSearchUrl(selectedMitra)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`${btnSecondary} shrink-0`}
+                      >
+                        <Icon name="external" />
+                        Buka Maps
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="overflow-hidden rounded-xl border border-slate-200">
+                    <iframe
+                      key={selectedMitraId ?? 'aceh'}
+                      title={`Google Maps ${selectedMitra?.name ?? 'Aceh'}`}
+                      width="100%"
+                      height="100%"
+                      style={{ border: 0 }}
+                      src={getGoogleMapsEmbedUrl(selectedMitra)}
+                      allowFullScreen
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      className="h-[280px] w-full sm:h-[340px]"
+                    />
+                  </div>
+                  </section>
+                ) : (
+                  <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm" aria-labelledby="overview-map-title">
+                  <div className="mb-4">
+                    <h2 id="overview-map-title" className="text-lg font-semibold text-slate-900">Ikhtisar semua lokasi</h2>
+                    <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                      Peta ini hanya menampilkan pin lokasi semua bank sampah.
+                    </p>
+                  </div>
+                  <div className="overflow-hidden rounded-xl border border-slate-200">
+                    <MitraOsmMap />
+                  </div>
+                  <p className="mt-3 text-sm leading-relaxed text-slate-600">
+                    Nomor pin sesuai nomor pada daftar. Pin memakai koordinat yang diberikan untuk tiap bank sampah.
+                  </p>
+                  </section>
+                )}
+
+                {mitraMapView === 'interactive' && (
+                  <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm" aria-label="Detail mitra">
+                  {selectedMitra ? (
+                    <>
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Detail lokasi terpilih</p>
+                          <h2 className="mt-1 text-lg font-semibold leading-snug text-slate-900">{selectedMitra.name}</h2>
+                          <p className="mt-1 text-sm text-slate-600">{selectedMitra.district}</p>
+                        </div>
+                        <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${
+                          selectedMitra.status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${selectedMitra.status === 'Aktif' ? 'bg-emerald-600' : 'bg-amber-500'}`} />
+                          {selectedMitra.status}
+                        </span>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-600">Alamat</h3>
+                          <p className="mt-2 break-words text-sm leading-relaxed text-slate-900">{selectedMitra.address}</p>
+                        </div>
+                        <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-600">Telepon</h3>
+                          <p className="mt-2 text-sm leading-relaxed text-slate-900">
+                            {selectedMitra.phone === 'Belum Tersedia' ? (
+                              selectedMitra.phone
+                            ) : (
+                              <a href={`tel:${selectedMitra.phone.replace(/[^+\d]/g, '')}`} className="font-medium underline underline-offset-2 hover:text-emerald-800">
+                                {selectedMitra.phone}
+                              </a>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 rounded-xl border border-slate-200 p-4">
+                        <h3 className="text-sm font-semibold text-slate-900">Jam operasional</h3>
+                        <ul className="mt-2 grid grid-cols-1 gap-2 text-sm leading-relaxed text-slate-700 sm:grid-cols-2">
+                          {selectedMitra.openingHours.map((hours) => (
+                            <li key={hours} className="rounded-lg bg-slate-50 px-3 py-2">{hours}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <a
+                          href={getGoogleMapsDirectionsUrl(selectedMitra)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={btnPrimary}
+                        >
+                          <Icon name="navigation" />
+                          Petunjuk arah Google Maps
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = selectedMitra.status === 'Aktif' ? 'Libur' : 'Aktif';
+                            updateMitra(selectedMitra.id, { status: next });
+                            setToast(next === 'Libur' ? `${selectedMitra.name} ditandai libur` : `${selectedMitra.name} diaktifkan kembali`);
+                          }}
+                          className={btnSecondary}
+                        >
+                          {selectedMitra.status === 'Aktif' ? 'Tandai libur' : 'Aktifkan unit'}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center">
+                      <h2 className="text-lg font-semibold text-slate-900">Pilih lokasi mitra</h2>
+                      <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                        Informasi alamat, telepon, jadwal, dan petunjuk arah akan tampil di sini.
+                      </p>
+                    </div>
+                  )}
+                  <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-900">
+                    Sebelum membawa setoran, konfirmasikan jadwal dan jenis material yang diterima kepada pengelola unit.
+                  </p>
+                  </section>
+                )}
+              </div>
               </div>
             </div>
           )}
 
+          {/* ───────── ANALITIK ───────── */}
+          {activeTab === 'analitik' && (
+            <div className="space-y-5">
+              <section aria-labelledby="chart-title" className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-6">
+                  <div>
+                    <h2 id="chart-title" className="text-lg font-semibold text-slate-900">{metricMeta[metric].label} per bulan</h2>
+                    <p className="text-sm text-slate-600 mt-0.5">
+                      Rata-rata {fmtNum(avgMetric)} {metricMeta[metric].unit} per bulan. Bulan terbaru berwarna hijau.
+                    </p>
+                  </div>
+                  <div className="flex rounded-lg border border-slate-300 overflow-hidden text-sm w-fit" role="group" aria-label="Pilih metrik">
+                    {(Object.keys(metricMeta) as Metric[]).map((k) => (
+                      <button
+                        key={k}
+                        onClick={() => setMetric(k)}
+                        aria-pressed={metric === k}
+                        className={`px-3 py-1.5 border-r last:border-r-0 border-slate-300 ${metric === k ? 'bg-emerald-700 text-white font-medium' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+                      >
+                        {metricMeta[k].label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-end gap-3 sm:gap-8 h-64 border-b border-slate-300">
+                  {monthlyData.map((d, i) => {
+                    const last = i === monthlyData.length - 1;
+                    return (
+                      <div key={d.month} className="flex-1 h-full flex flex-col justify-end items-center gap-2">
+                        <span className="text-sm tabular-nums text-slate-800 font-medium">{fmtNum(d[metric])}</span>
+                        <div className={`w-full max-w-14 rounded-t ${last ? 'bg-emerald-700' : 'bg-slate-300'}`} style={{ height: `${(d[metric] / maxMetric) * 78}%` }} />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-3 sm:gap-8 pt-2">
+                  {monthlyData.map((d) => (
+                    <span key={d.month} className="flex-1 text-center text-sm text-slate-600">{d.month}</span>
+                  ))}
+                </div>
+              </section>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <section aria-labelledby="komp-title" className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+                  <h2 id="komp-title" className="text-lg font-semibold text-slate-900">Komposisi material</h2>
+                  <p className="text-sm text-slate-600 mt-0.5 mb-4">Persentase berat per kategori.</p>
+                  <ul className="space-y-3">
+                    {composition.map((c) => (
+                      <li key={c.label}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="text-slate-800">{c.label}</span>
+                          <span className="tabular-nums font-medium text-slate-900">{c.pct}%</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
+                          <div className="h-full bg-emerald-700" style={{ width: `${c.pct}%` }} />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+
+                <section aria-labelledby="dampak-title" className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+                  <h2 id="dampak-title" className="text-lg font-semibold text-slate-900">Dampak lingkungan</h2>
+                  <p className="text-sm text-slate-600 mt-0.5 mb-4">Akumulasi 2026, dikonversi ke satuan yang mudah dibayangkan.</p>
+                  <dl className="divide-y divide-slate-100 border-y border-slate-200">
+                    <div className="flex items-baseline justify-between py-3">
+                      <dt className="text-sm text-slate-700">Setara serapan karbon</dt>
+                      <dd className="text-xl font-semibold tabular-nums">890 pohon</dd>
+                    </div>
+                    <div className="flex items-baseline justify-between py-3">
+                      <dt className="text-sm text-slate-700">Emisi kendaraan yang dihindari</dt>
+                      <dd className="text-xl font-semibold tabular-nums">534 ribu km</dd>
+                    </div>
+                  </dl>
+                </section>
+              </div>
+            </div>
+          )}
+
+          {/* ───────── MASTER DATA ───────── */}
+          {activeTab === 'masterdata' && (
+            <section aria-labelledby="master-title" className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-4">
+                <div>
+                  <h2 id="master-title" className="text-lg font-semibold text-slate-900">Kategori sampah</h2>
+                  <p className="text-sm text-slate-600 mt-0.5">Atur poin yang diterima nasabah dan faktor emisi untuk setiap kg.</p>
+                </div>
+                <button onClick={openAddForm} className={btnPrimary}>
+                  <Icon name="plus" /> Tambah kategori
+                </button>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-50/80">
+                    <tr className="text-slate-600 border-b border-slate-200">
+                      <th className="py-3 pr-4 font-medium">ID</th>
+                      <th className="py-3 pr-4 font-medium">Nama</th>
+                      <th className="py-3 pr-4 font-medium text-right">Poin per kg</th>
+                      <th className="py-3 pr-4 font-medium text-right">CO₂ per kg</th>
+                      <th className="py-3 font-medium text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {categories.map((c) => (
+                      <tr key={c.id}>
+                        <td className="py-3.5 pr-4 text-slate-500 font-mono">{c.id}</td>
+                        <td className="py-3.5 pr-4 font-medium text-slate-900">{c.nama}</td>
+                        <td className="py-3.5 pr-4 text-right tabular-nums">{c.poinPerKg}</td>
+                        <td className="py-3.5 pr-4 text-right tabular-nums">{c.emisiPerKg} kg</td>
+                        <td className="py-3.5 text-right whitespace-nowrap">
+                          <button onClick={() => openEditForm(c)} className={`p-2 rounded-lg text-slate-600 hover:bg-slate-100 ${focusRing}`} aria-label={`Ubah ${c.nama}`} title="Ubah">
+                            <Icon name="pencil" />
+                          </button>
+                          <button onClick={() => setDeleting(c)} className={`p-2 rounded-lg text-slate-600 hover:text-red-700 hover:bg-red-50 ${focusRing}`} aria-label={`Hapus ${c.nama}`} title="Hapus">
+                            <Icon name="trash" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {categories.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-10 text-center text-slate-500">
+                          Belum ada kategori. Tambahkan kategori pertama agar nasabah bisa menyetor.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
         </main>
       </div>
+
+      {/* Modal tambah/ubah kategori */}
+      {formOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50" onMouseDown={(e) => e.target === e.currentTarget && setFormOpen(false)}>
+          <form onSubmit={saveCategory} className="w-full max-w-md bg-white rounded-xl p-6 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="form-title">
+            <div className="flex items-start justify-between mb-5">
+              <h2 id="form-title" className="text-lg font-semibold text-slate-900">{editing ? 'Ubah kategori' : 'Tambah kategori'}</h2>
+              <button type="button" onClick={() => setFormOpen(false)} className="p-1.5 -mr-1.5 rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Tutup">
+                <Icon name="x" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="f-nama" className="block text-sm font-medium text-slate-800 mb-1.5">Nama kategori</label>
+                <input id="f-nama" value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} className={inputCls} placeholder="Contoh: Kertas HVS" autoFocus />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="f-poin" className="block text-sm font-medium text-slate-800 mb-1.5">Poin per kg</label>
+                  <input id="f-poin" inputMode="numeric" value={form.poin} onChange={(e) => setForm({ ...form, poin: e.target.value })} className={inputCls} placeholder="50" />
+                </div>
+                <div>
+                  <label htmlFor="f-emisi" className="block text-sm font-medium text-slate-800 mb-1.5">CO₂ per kg</label>
+                  <input id="f-emisi" inputMode="decimal" value={form.emisi} onChange={(e) => setForm({ ...form, emisi: e.target.value })} className={inputCls} placeholder="1.5" />
+                </div>
+              </div>
+              {formError && <p role="alert" className="text-sm text-red-700">{formError}</p>}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button type="button" onClick={() => setFormOpen(false)} className={btnSecondary}>Batal</button>
+              <button type="submit" className={btnPrimary}>{editing ? 'Simpan perubahan' : 'Tambah kategori'}</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Konfirmasi hapus */}
+      {deleting && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50" onMouseDown={(e) => e.target === e.currentTarget && setDeleting(null)}>
+          <div className="w-full max-w-sm bg-white rounded-xl p-6 shadow-xl" role="alertdialog" aria-modal="true" aria-labelledby="del-title">
+            <h2 id="del-title" className="text-lg font-semibold text-slate-900">Hapus kategori {deleting.nama}?</h2>
+            <p className="text-sm text-slate-600 mt-2">Kategori ini tidak akan muncul lagi di pilihan setoran. Tindakan ini tidak bisa dibatalkan.</p>
+            <div className="mt-6 flex justify-end gap-2">
+              <button onClick={() => setDeleting(null)} className={btnSecondary}>Batal</button>
+              <button onClick={confirmDelete} className={`inline-flex items-center px-4 py-2 rounded-lg bg-red-700 hover:bg-red-800 text-white text-sm font-medium ${focusRing}`}>
+                Hapus kategori
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Detail Nasabah */}
+      {selectedNasabah && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-[2px]"
+          onMouseDown={(e) => e.target === e.currentTarget && setSelectedNasabah(null)}
+        >
+          <div
+            className="w-full max-w-lg bg-white rounded-xl p-6 shadow-xl border border-slate-200"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="nasabah-detail-title"
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-lg border border-emerald-200">
+                  {selectedNasabah.nama.slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 id="nasabah-detail-title" className="text-lg font-bold text-slate-900">
+                      {selectedNasabah.nama}
+                    </h2>
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        selectedNasabah.status === 'Aktif'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : 'bg-slate-100 text-slate-600 border border-slate-300'
+                      }`}
+                    >
+                      {selectedNasabah.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 font-mono mt-0.5">
+                    {selectedNasabah.id} · Terdaftar {selectedNasabah.joinDate}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedNasabah(null)}
+                className="p-1.5 -mr-1.5 rounded-lg text-slate-500 hover:bg-slate-100"
+                aria-label="Tutup"
+              >
+                <Icon name="x" />
+              </button>
+            </div>
+
+            {/* Metric Overview */}
+            <div className="grid grid-cols-3 gap-3 my-4">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+                <span className="text-xs text-slate-500 block mb-0.5">Total Poin</span>
+                <span className="text-xl font-bold text-emerald-700 tabular-nums">
+                  {selectedNasabah.poin.toLocaleString()}
+                </span>
+                <span className="text-[11px] text-slate-400 block">pts</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+                <span className="text-xs text-slate-500 block mb-0.5">Total Sampah</span>
+                <span className="text-xl font-bold text-slate-900 tabular-nums">
+                  {selectedNasabah.totalKg.toFixed(1)}
+                </span>
+                <span className="text-[11px] text-slate-400 block">kg terselamatkan</span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
+                <span className="text-xs text-slate-500 block mb-0.5">Frekuensi</span>
+                <span className="text-xl font-bold text-slate-900 tabular-nums">
+                  {selectedNasabah.frekuensi}
+                </span>
+                <span className="text-[11px] text-slate-400 block">kali setoran</span>
+              </div>
+            </div>
+
+            {/* Quick Points Adjustment */}
+            <div className="p-3 rounded-lg bg-emerald-50/70 border border-emerald-100 mb-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-emerald-950">Insentif / Penyesuaian Poin</p>
+                <p className="text-[11px] text-emerald-800">Tambahkan reward apresiasi untuk nasabah ini</p>
+              </div>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => addBonusPoints(selectedNasabah.id, 50)}
+                  className="px-2.5 py-1 text-xs font-medium rounded bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition-colors shadow-sm"
+                >
+                  +50 pts
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addBonusPoints(selectedNasabah.id, 100)}
+                  className="px-2.5 py-1 text-xs font-medium rounded bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition-colors shadow-sm"
+                >
+                  +100 pts
+                </button>
+              </div>
+            </div>
+
+            {/* Info details */}
+            <div className="space-y-2.5 text-sm py-1">
+              <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-500 text-xs">Level Keanggotaan</span>
+                <span className="font-semibold text-slate-800 text-xs">{selectedNasabah.level}</span>
+              </div>
+              <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-500 text-xs">Email</span>
+                <span className="text-slate-800 font-mono text-xs">{selectedNasabah.email}</span>
+              </div>
+              <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-500 text-xs">No. Telepon / WhatsApp</span>
+                <span className="text-slate-800 text-xs">{selectedNasabah.telepon}</span>
+              </div>
+              <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-500 text-xs">Wilayah Domisili</span>
+                <span className="text-slate-800 text-xs">{selectedNasabah.kecamatan}, Kota Banda Aceh</span>
+              </div>
+              <div className="flex items-center justify-between py-1.5">
+                <span className="text-slate-500 text-xs">Mitra Bank Sampah Utama</span>
+                <span className="text-emerald-800 font-medium text-xs">{selectedNasabah.mitraFavorit}</span>
+              </div>
+            </div>
+
+            {/* Footer actions */}
+            <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  const newSt = selectedNasabah.status === 'Aktif' ? 'Nonaktif' : 'Aktif';
+                  updateNasabahStatus(selectedNasabah.id, newSt);
+                }}
+                className={`text-xs font-medium px-3 py-2 rounded-lg border transition-colors ${
+                  selectedNasabah.status === 'Aktif'
+                    ? 'border-red-200 text-red-700 hover:bg-red-50'
+                    : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                }`}
+              >
+                {selectedNasabah.status === 'Aktif' ? 'Tandai Nonaktif' : 'Aktifkan Kembali'}
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = selectedNasabah;
+                    setSelectedNasabah(null);
+                    openEditNasabahForm(target);
+                  }}
+                  className={btnSecondary}
+                >
+                  <Icon name="pencil" className="w-3.5 h-3.5 mr-1.5" />
+                  Ubah Data
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedNasabah(null)}
+                  className={btnPrimary}
+                >
+                  Selesai
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Tambah / Ubah Nasabah */}
+      {nasabahFormOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-[2px]"
+          onMouseDown={(e) => e.target === e.currentTarget && setNasabahFormOpen(false)}
+        >
+          <form
+            onSubmit={saveNasabah}
+            className="w-full max-w-lg bg-white rounded-xl p-6 shadow-xl border border-slate-200 max-h-[92vh] overflow-y-auto"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="nasabah-form-title"
+          >
+            <div className="flex items-start justify-between mb-4 pb-3 border-b border-slate-100">
+              <div>
+                <h2 id="nasabah-form-title" className="text-lg font-bold text-slate-900">
+                  {nasabahEditing ? 'Ubah Data Nasabah' : 'Pendaftaran Nasabah Baru'}
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {nasabahEditing
+                    ? `Perbarui profil dan preferensi ${nasabahEditing.nama} (${nasabahEditing.id})`
+                    : 'Tambahkan data warga yang ingin bergabung ke program daur ulang EcoBank'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNasabahFormOpen(false)}
+                className="p-1.5 -mr-1.5 rounded-lg text-slate-500 hover:bg-slate-100"
+                aria-label="Tutup"
+              >
+                <Icon name="x" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-sm">
+              <div>
+                <label htmlFor="nf-nama" className="block text-xs font-semibold text-slate-700 mb-1">
+                  Nama Lengkap Nasabah <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="nf-nama"
+                  type="text"
+                  required
+                  value={nasabahForm.nama}
+                  onChange={(e) => setNasabahForm({ ...nasabahForm, nama: e.target.value })}
+                  className={inputCls}
+                  placeholder="Contoh: Cut Mutia"
+                  autoFocus
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="nf-email" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Alamat Email <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="nf-email"
+                    type="email"
+                    required
+                    value={nasabahForm.email}
+                    onChange={(e) => setNasabahForm({ ...nasabahForm, email: e.target.value })}
+                    className={inputCls}
+                    placeholder="nama@email.com"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="nf-tel" className="block text-xs font-semibold text-slate-700 mb-1">
+                    No. Telepon / WhatsApp
+                  </label>
+                  <input
+                    id="nf-tel"
+                    type="tel"
+                    value={nasabahForm.telepon}
+                    onChange={(e) => setNasabahForm({ ...nasabahForm, telepon: e.target.value })}
+                    className={inputCls}
+                    placeholder="0812-3456-7890"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="nf-kecamatan" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Kecamatan Domisili (Banda Aceh)
+                  </label>
+                  <select
+                    id="nf-kecamatan"
+                    value={nasabahForm.kecamatan}
+                    onChange={(e) => setNasabahForm({ ...nasabahForm, kecamatan: e.target.value })}
+                    className={inputCls}
+                  >
+                    <option value="Kec. Syiah Kuala">Kec. Syiah Kuala</option>
+                    <option value="Kec. Ulee Kareng">Kec. Ulee Kareng</option>
+                    <option value="Kec. Meuraxa">Kec. Meuraxa</option>
+                    <option value="Kec. Baiturrahman">Kec. Baiturrahman</option>
+                    <option value="Kec. Kuta Alam">Kec. Kuta Alam</option>
+                    <option value="Kec. Lueng Bata">Kec. Lueng Bata</option>
+                    <option value="Kec. Jaya Baru">Kec. Jaya Baru</option>
+                    <option value="Kec. Banda Raya">Kec. Banda Raya</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="nf-level" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Tingkat Keanggotaan
+                  </label>
+                  <select
+                    id="nf-level"
+                    value={nasabahForm.level}
+                    onChange={(e) => setNasabahForm({ ...nasabahForm, level: e.target.value })}
+                    className={inputCls}
+                  >
+                    <option value="Level 1 · Eco Starter">Level 1 · Eco Starter (0 - 499 pts)</option>
+                    <option value="Level 2 · Green Pioneer">Level 2 · Green Pioneer (500 - 1.499 pts)</option>
+                    <option value="Level 3 · Planet Guardian">Level 3 · Planet Guardian (1.500+ pts)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="nf-poin" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Saldo Poin {nasabahEditing ? 'Saat Ini' : 'Awal'}
+                  </label>
+                  <input
+                    id="nf-poin"
+                    type="number"
+                    min="0"
+                    value={nasabahForm.poin}
+                    onChange={(e) => setNasabahForm({ ...nasabahForm, poin: e.target.value })}
+                    className={inputCls}
+                    placeholder="0"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="nf-mitra" className="block text-xs font-semibold text-slate-700 mb-1">
+                    Mitra Bank Sampah Terdekat
+                  </label>
+                  <select
+                    id="nf-mitra"
+                    value={nasabahForm.mitraFavorit}
+                    onChange={(e) => setNasabahForm({ ...nasabahForm, mitraFavorit: e.target.value })}
+                    className={inputCls}
+                  >
+                    {nasabahForm.mitraFavorit && !mitra.some((m) => m.name === nasabahForm.mitraFavorit) && (
+                      <option value={nasabahForm.mitraFavorit}>{nasabahForm.mitraFavorit} (data tersimpan)</option>
+                    )}
+                    {mitra.map((m) => (
+                      <option key={m.id} value={m.name}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {nasabahFormError && (
+                <div role="alert" className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
+                  {nasabahFormError}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+              <button type="button" onClick={() => setNasabahFormOpen(false)} className={btnSecondary}>
+                Batal
+              </button>
+              <button type="submit" className={btnPrimary}>
+                {nasabahEditing ? 'Simpan Perubahan' : 'Daftarkan Nasabah'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div role="status" aria-live="polite" className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] bg-slate-900 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg max-w-[90vw]">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
