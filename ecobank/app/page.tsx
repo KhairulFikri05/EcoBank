@@ -242,12 +242,10 @@ export default function LandingPage() {
               <div className="flex flex-wrap items-center gap-4 pt-2">
                 <Link
                   href="/register"
-                  className="inline-flex items-center gap-2.5 font-bold text-sm px-7 py-3.5 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/25 transition-all hover:scale-[1.02]"
+                  className="inline-flex items-center gap-2.5 font-bold text-sm px-7 py-3.5 rounded-full bg-emerald-500 hover:bg-emerald-400 !text-white shadow-lg shadow-emerald-500/25 transition-all hover:scale-[1.02]"
                 >
                   <span>Mulai Sekarang</span>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                  </svg>
+                  
                 </Link>
 
                 {/* Rating Badge (Reference 1 style) */}
