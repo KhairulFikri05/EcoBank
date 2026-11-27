@@ -1,6 +1,37 @@
 "use client";
 
-export default function CommunityImpactCard() {
+export interface PublicImpactStats {
+  totalWeightKg: number;
+  totalCo2SavedKg: number;
+  totalNasabah: number;
+  totalDropPoints: number;
+  isLive?: boolean;
+}
+
+const DEFAULT_STATS: PublicImpactStats = {
+  totalWeightKg: 45200,
+  totalCo2SavedKg: 12800,
+  totalNasabah: 12980,
+  totalDropPoints: 5,
+  isLive: false,
+};
+
+function formatMassSummary(kg: number): string {
+  if (kg >= 1000) {
+    return `${(kg / 1000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} Ton`;
+  }
+  return `${kg.toLocaleString("id-ID", { maximumFractionDigits: 1 })} kg`;
+}
+
+export default function CommunityImpactCard({
+  stats = DEFAULT_STATS,
+}: {
+  stats?: PublicImpactStats;
+}) {
+  const weightLabel = formatMassSummary(stats.totalWeightKg);
+  const co2Label = formatMassSummary(stats.totalCo2SavedKg);
+  const nasabahLabel = `${stats.totalNasabah.toLocaleString("id-ID")}+`;
+
   return (
     <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center lg:justify-end">
       {/* ── CARD 1: Video / Visual Story Showcase (Reference 1 style) ── */}
@@ -65,14 +96,16 @@ export default function CommunityImpactCard() {
             Dampak Nyata Komunitas
           </h4>
           <p className="text-xs text-slate-300/90 leading-relaxed mt-2">
-            45.2 Ton sampah berhasil didaur ulang & 12.8 Ton emisi karbon ditekan bersama 12.980+ warga.
+            {weightLabel} sampah berhasil didaur ulang &amp; {co2Label} emisi karbon ditekan bersama {nasabahLabel} warga.
           </p>
         </div>
 
         {/* Bottom Metric Line */}
         <div className="pt-3 border-t border-white/10 flex items-baseline justify-between">
-          <span className="text-[11px] text-slate-300 font-medium">Poin Tersalurkan</span>
-          <span className="text-xs font-bold text-emerald-300 font-mono">1.450.000 Pts</span>
+          <span className="text-[11px] text-slate-300 font-medium">Mitra Drop Point</span>
+          <span className="text-xs font-bold text-emerald-300 font-mono">
+            {stats.totalDropPoints.toLocaleString("id-ID")} Lokasi Aktif
+          </span>
         </div>
       </div>
     </div>
