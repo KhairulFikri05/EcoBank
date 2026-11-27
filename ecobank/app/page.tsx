@@ -2,7 +2,77 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
-import CommunityImpactCard from "@/components/CommunityImpactCard";
+import CommunityImpactCard, { type PublicImpactStats } from "@/components/CommunityImpactCard";
+import { supabase } from "@/lib/supabase";
+import { mitraLocations, getGoogleMapsDirectionsUrl, type MitraLocation } from "@/lib/mitraLocations";
+
+interface PublicWasteCategory {
+  id: string;
+  slug: string;
+  name: string;
+  pointsPerKg: number;
+  co2PerKg: number;
+  image: string;
+  glow: string;
+  border: string;
+}
+
+const DEFAULT_WASTE_CATEGORIES: PublicWasteCategory[] = [
+  {
+    id: "plastik",
+    slug: "plastik",
+    name: "Botol Plastik (PET/HDPE)",
+    pointsPerKg: 50,
+    co2PerKg: 1.5,
+    image: "/images/plastik.jpeg",
+    glow: "rgba(59,130,246,0.1)",
+    border: "rgba(96,165,250,0.2)",
+  },
+  {
+    id: "kertas",
+    slug: "kertas",
+    name: "Kardus & Kertas",
+    pointsPerKg: 30,
+    co2PerKg: 0.8,
+    image: "/images/kertas.jpeg",
+    glow: "rgba(245,158,11,0.1)",
+    border: "rgba(251,191,36,0.2)",
+  },
+  {
+    id: "kaleng",
+    slug: "kaleng",
+    name: "Kaleng Logam & Alumunium",
+    pointsPerKg: 80,
+    co2PerKg: 2.0,
+    image: "/images/kaleng.jpeg",
+    glow: "rgba(148,163,184,0.1)",
+    border: "rgba(203,213,225,0.2)",
+  },
+  {
+    id: "kaca",
+    slug: "kaca",
+    name: "Botol & Pecahan Kaca",
+    pointsPerKg: 20,
+    co2PerKg: 0.5,
+    image: "/images/kaca.jpeg",
+    glow: "rgba(52,211,153,0.1)",
+    border: "rgba(52,211,153,0.2)",
+  },
+];
+
+function getWasteVisual(slugOrName: string) {
+  const key = slugOrName.toLowerCase();
+  if (key.includes("kertas") || key.includes("kardus")) {
+    return { image: "/images/kertas.jpeg", glow: "rgba(245,158,11,0.1)", border: "rgba(251,191,36,0.2)" };
+  }
+  if (key.includes("kaleng") || key.includes("logam") || key.includes("alumunium")) {
+    return { image: "/images/kaleng.jpeg", glow: "rgba(148,163,184,0.1)", border: "rgba(203,213,225,0.2)" };
+  }
+  if (key.includes("kaca") || key.includes("gelas")) {
+    return { image: "/images/kaca.jpeg", glow: "rgba(52,211,153,0.1)", border: "rgba(52,211,153,0.2)" };
+  }
+  return { image: "/images/plastik.jpeg", glow: "rgba(59,130,246,0.1)", border: "rgba(96,165,250,0.2)" };
+}
 
 /* ─────────────────────────────────────────────
    SVG Logo — custom leaf + coin mark
@@ -69,10 +139,86 @@ export default function LandingPage() {
   const [scrollY, setScrollY] = useState(0);
   const heroRef = useRef<HTMLElement>(null);
 
+  const [impactStats, setImpactStats] = useState<PublicImpactStats>({
+    totalWeightKg: 45200,
+    totalCo2SavedKg: 12450,
+    totalNasabah: 12980,
+    totalDropPoints: mitraLocations.length,
+    isLive: false,
+  });
+  const [wasteCategories, setWasteCategories] = useState<PublicWasteCategory[]>(DEFAULT_WASTE_CATEGORIES);
+  const [publicDropPoints, setPublicDropPoints] = useState<MitraLocation[]>(mitraLocations);
+
   useEffect(() => {
     const onScroll = () => setScrollY(window.scrollY);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadPublicData() {
+      try {
+        const [statsRes, wcRes, dpRes] = await Promise.all([
+          supabase.rpc("get_public_impact_stats"),
+          supabase.from("waste_categories").select("*").eq("is_active", true).order("name", { ascending: true }),
+          supabase.from("drop_points").select("*").eq("is_active", true).order("mitra_code", { ascending: true }),
+        ]);
+
+        if (!isMounted) return;
+
+        if (!statsRes.error && statsRes.data) {
+          const raw = Array.isArray(statsRes.data) ? statsRes.data[0] : statsRes.data;
+          if (raw) {
+            setImpactStats({
+              totalWeightKg: Number(raw.total_weight_kg ?? 45200),
+              totalCo2SavedKg: Number(raw.total_co2_saved_kg ?? 12450),
+              totalNasabah: Number(raw.total_nasabah ?? 12980),
+              totalDropPoints: Number(raw.total_drop_points ?? mitraLocations.length),
+              isLive: true,
+            });
+          }
+        }
+
+        if (!wcRes.error && wcRes.data && wcRes.data.length > 0) {
+          setWasteCategories(
+            wcRes.data.map((wc) => {
+              const vis = getWasteVisual(wc.slug || wc.name || "");
+              return {
+                id: wc.id,
+                slug: wc.slug || wc.id,
+                name: wc.name,
+                pointsPerKg: Number(wc.points_per_kg),
+                co2PerKg: Number(wc.co2_per_kg),
+                ...vis,
+              };
+            })
+          );
+        }
+
+        if (!dpRes.error && dpRes.data && dpRes.data.length > 0) {
+          setPublicDropPoints(
+            dpRes.data.map((dp) => ({
+              id: dp.id,
+              name: dp.name,
+              district: dp.district,
+              address: dp.address,
+              phone: dp.phone || "Belum Tersedia",
+              openingHours: Array.isArray(dp.operating_hours) ? dp.operating_hours : ["Belum Tersedia"],
+              latitude: dp.latitude,
+              longitude: dp.longitude,
+            }))
+          );
+        }
+      } catch (err) {
+        console.warn("Gagal memuat data publik Supabase:", err);
+      }
+    }
+
+    loadPublicData();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const navScrolled = scrollY > 60;
@@ -262,14 +408,13 @@ export default function LandingPage() {
                   className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-300 hover:text-emerald-200 transition-colors"
                 >
                   <span>Pelajari cara kerja penukaran sampah</span>
-                  <span>↓</span>
                 </a>
               </div>
             </div>
 
             {/* RIGHT — Dual Aesthetic Floating Cards (Reference 1 style) */}
             <div className="lg:col-span-6 hidden lg:flex justify-end items-center">
-              <CommunityImpactCard />
+              <CommunityImpactCard stats={impactStats} />
             </div>
           </div>
         </div>
@@ -356,10 +501,10 @@ export default function LandingPage() {
                     Dampak Kolektif
                   </p>
                   <p className="text-base font-extrabold" style={{ color: "#0a1f0e", letterSpacing: "-0.02em" }}>
-                    12.450+ kg CO₂
+                    {impactStats.totalCo2SavedKg.toLocaleString("id-ID")}{impactStats.isLive ? "" : "+"} kg CO₂
                   </p>
                   <p className="text-xs" style={{ color: "#6b7280" }}>
-                    Berhasil dikurangi bersama
+                    {impactStats.totalWeightKg.toLocaleString("id-ID")} kg sampah · {impactStats.totalNasabah.toLocaleString("id-ID")} nasabah
                   </p>
                 </div>
               </div>
@@ -374,17 +519,16 @@ export default function LandingPage() {
               >
                 <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
                 <span className="text-xs font-bold" style={{ color: "#15803d" }}>
-                  100% Transparan & Real-Time
+                  100% Transparan & Realtime
                 </span>
               </div>
             </div>
 
-{/* RIGHT — Text */}
+            {/* RIGHT — Text */}
             <div className="space-y-7 pt-2 sm:pt-4 lg:pt-0">
               {/* Eyebrow & Judul */}
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <span className="w-8 h-[2px] rounded-full" style={{ background: "#16a34a" }} />
                   <span
                     className="text-xs font-bold uppercase tracking-[0.2em]"
                     style={{ color: "#15803d" }}
@@ -428,7 +572,7 @@ export default function LandingPage() {
                     className="text-2xl font-extrabold"
                     style={{ color: "#0a1f0e", letterSpacing: "-0.03em" }}
                   >
-                    4 Kategori
+                    {wasteCategories.length} Kategori
                   </p>
                   <p className="text-xs leading-relaxed mt-1" style={{ color: "#4b5563" }}>
                     Plastik, kertas, logam, hingga kaca terkelola rapi
@@ -454,9 +598,9 @@ export default function LandingPage() {
                   </div>
                   <p
                     className="text-2xl font-extrabold"
-                    style={{ color: "#16a34a", letterSpacing: "-0.03em" }}
+                    style={{ color: "black", letterSpacing: "-0.03em" }}
                   >
-                    Real-Time
+                    Realtime
                   </p>
                   <p className="text-xs leading-relaxed mt-1" style={{ color: "#4b5563" }}>
                     Perhitungan poin &amp; jejak reduksi CO₂ otomatis
@@ -492,7 +636,7 @@ export default function LandingPage() {
                   }}
                 >
                   <span>Pelajari Alur Setor</span>
-                  <span className="transition-transform duration-200 group-hover:translate-x-1">→</span>
+                  <span className="transition-transform duration-200 group-hover:translate-x-1"></span>
                 </a>
               </div>
             </div>
@@ -610,7 +754,7 @@ export default function LandingPage() {
                   style={{ color: "#facc15" }}
                 >
                   <span>Pelajari lebih lanjut</span>
-                  <span className="transition-transform duration-200 group-hover:translate-x-1">→</span>
+                  <span className="transition-transform duration-200 group-hover:translate-x-1"></span>
                 </a>
               </div>
             ))}
@@ -737,7 +881,7 @@ export default function LandingPage() {
                 boxShadow: "0 8px 24px rgba(22,163,74,0.35)",
               }}
             >
-              Mulai Perjalanan Hijau Kamu →
+              Mulai Perjalanan Hijau Kamu
             </Link>
           </div>
         </div>
@@ -764,42 +908,9 @@ export default function LandingPage() {
           </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-            {[
-              {
-                image: "/images/plastik.jpeg",
-                name: "Plastik",
-                rate: "50 Poin/kg",
-                co2: "0.6 kg CO₂/kg",
-                glow: "rgba(59,130,246,0.1)",
-                border: "rgba(96,165,250,0.2)",
-              },
-              {
-                image: "/images/kertas.jpeg",
-                name: "Kertas & Kardus",
-                rate: "30 Poin/kg",
-                co2: "0.4 kg CO₂/kg",
-                glow: "rgba(245,158,11,0.1)",
-                border: "rgba(251,191,36,0.2)",
-              },
-              {
-                image: "/images/kaleng.jpeg",
-                name: "Logam & Kaleng",
-                rate: "70 Poin/kg",
-                co2: "0.9 kg CO₂/kg",
-                glow: "rgba(148,163,184,0.1)",
-                border: "rgba(203,213,225,0.2)",
-              },
-              {
-                image: "/images/kaca.jpeg",
-                name: "Kaca & Botol",
-                rate: "40 Poin/kg",
-                co2: "0.5 kg CO₂/kg",
-                glow: "rgba(52,211,153,0.1)",
-                border: "rgba(52,211,153,0.2)",
-              },
-            ].map((w) => (
+            {wasteCategories.map((w) => (
               <div
-                key={w.name}
+                key={w.id}
                 className="rounded-2xl overflow-hidden flex flex-col transition-all duration-200 hover:-translate-y-1"
                 style={{ background: w.glow, border: `1px solid ${w.border}`, backdropFilter: "blur(8px)" }}
               >
@@ -822,10 +933,10 @@ export default function LandingPage() {
                       className="inline-block text-[11px] font-bold px-3 py-1 rounded-full"
                       style={{ background: "rgba(74,222,128,0.15)", color: "#86efac", border: "1px solid rgba(74,222,128,0.2)" }}
                     >
-                      {w.rate}
+                      {w.pointsPerKg} Poin/kg
                     </span>
                     <p className="text-[11px]" style={{ color: "rgba(187,247,208,0.55)" }}>
-                      {w.co2}
+                      {w.co2PerKg} kg CO₂/kg
                     </p>
                   </div>
                 </div>
@@ -835,120 +946,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-{/* ══════════════════════════════════════
-          TESTIMONIALS
-      ══════════════════════════════════════ */}
-      <section className="relative py-28 md:py-36 overflow-hidden" style={{ background: "#ffffff" }}>
-        {/* Pembatas Lengkung Simetris Atas (Menyatu dengan section sebelumnya #f8fdf9) */}
-        <div className="absolute top-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
-          <svg
-            className="relative block w-full h-12 md:h-20"
-            viewBox="0 0 1440 100"
-            preserveAspectRatio="none"
-          >
-            <path
-              d="M0,0 L1440,0 L1440,20 Q720,100 0,20 Z"
-              fill="#f8fdf9"
-            />
-          </svg>
-        </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-5 lg:px-10">
-          <div className="text-center mb-14 space-y-4">
-            <span
-              className="inline-block text-xs font-bold uppercase tracking-[0.18em] px-3.5 py-1.5 rounded-full"
-              style={{ background: "#dcfce7", color: "#15803d", border: "1px solid #bbf7d0" }}
-            >
-              Testimoni
-            </span>
-            <h2 className="text-3xl md:text-4xl font-extrabold" style={{ color: "#0a1f0e", letterSpacing: "-0.04em" }}>
-              Kata Mereka tentang EcoBank
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              {
-                name: "Budi Santoso",
-                role: "Nasabah, Jakarta",
-                rating: 5,
-                text: "Sejak pakai EcoBank, saya sudah kumpulkan 15 kg sampah plastik dan dapat voucher GoPay Rp75.000! Aplikasinya mudah banget dipakai.",
-                avatar: "B",
-                avatarBg: "#dcfce7",
-                avatarColor: "#15803d",
-              },
-              {
-                name: "Siti Rahayu",
-                role: "Ibu Rumah Tangga, Bandung",
-                rating: 5,
-                text: "Senang banget ada aplikasi seperti ini. Sampah rumah tangga kami sekarang tidak terbuang sia-sia, malah dapat poin yang bermanfaat.",
-                avatar: "S",
-                avatarBg: "#fef3c7",
-                avatarColor: "#b45309",
-              },
-              {
-                name: "Ahmad Fajar",
-                role: "Mahasiswa, Surabaya",
-                rating: 5,
-                text: "EcoBank mengajarkan saya betapa pentingnya memilah sampah. Dashboard-nya keren, bisa lihat berapa CO₂ yang sudah saya hemat.",
-                avatar: "A",
-                avatarBg: "#dbeafe",
-                avatarColor: "#1d4ed8",
-              },
-            ].map((t) => (
-              <div
-                key={t.name}
-                className="rounded-3xl p-7 space-y-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
-                style={{ background: "#f8fdf9", border: "1.5px solid #e5f7ea" }}
-              >
-                {/* Stars */}
-                <div className="flex gap-1">
-                  {Array.from({ length: t.rating }).map((_, i) => (
-                    <span key={i} className="text-amber-400">★</span>
-                  ))}
-                </div>
-
-                <p className="text-sm leading-relaxed" style={{ color: "#374151" }}>
-                  &ldquo;{t.text}&rdquo;
-                </p>
-
-                <div className="flex items-center gap-3 pt-3" style={{ borderTop: "1px solid #e5f7ea" }}>
-                  <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shrink-0"
-                    style={{ background: t.avatarBg, color: t.avatarColor }}
-                  >
-                    {t.avatar}
-                  </div>
-                  <div>
-                    <p className="font-bold text-sm" style={{ color: "#111827", letterSpacing: "-0.01em" }}>{t.name}</p>
-                    <p className="text-[11px]" style={{ color: "#9ca3af" }}>{t.role}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Pembatas Lengkung Simetris Bawah + Garis Tepi Halus */}
-        <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none pointer-events-none">
-          <svg
-            className="relative block w-full h-14 md:h-20"
-            viewBox="0 0 1440 100"
-            preserveAspectRatio="none"
-          >
-            <path
-              d="M0,80 Q720,0 1440,80 L1440,100 L0,100 Z"
-              fill="#f8fdf9"
-            />
-            <path
-              d="M-10,80 Q720,0 1450,80"
-              fill="none"
-              stroke="#15803d"
-              strokeWidth="1"
-            />
-          </svg>
-        </div>
-      </section>
 
       {/* ══════════════════════════════════════
           CTA SECTION
