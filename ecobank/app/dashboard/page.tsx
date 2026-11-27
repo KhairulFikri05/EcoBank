@@ -38,6 +38,7 @@ import { HeroStatSlider } from '@/components/dashboard/HeroStatSlider';
 import { CalculatorSection } from '@/components/dashboard/SetorSampahSection';
 import { RiwayatTransaksiSection } from '@/components/dashboard/RiwayatTransaksiSection';
 import { EdukasiSection } from '@/components/dashboard/EdukasiSection';
+import { ProfilSection } from '@/components/dashboard/ProfilSection';
 
 // ─── Popular Rewards Catalog ──────────────────────────────────────────────────
 const availableRewards: RewardItem[] = [
@@ -291,7 +292,7 @@ export default function DashboardPage() {
     setor: { title: 'Setor Sampah', sub: 'Hitung estimasi poin & upload foto bukti setoran' },
     riwayat: { title: 'Riwayat Transaksi', sub: 'Catatan seluruh setoran dan penukaran saldo poin' },
     edukasi: { title: 'Pusat Edukasi Sampah', sub: 'Panduan praktis pemilahan, jenis sampah, dan ekonomi sirkular' },
-    profil: { title: 'Profil Nasabah', sub: 'Kelola informasi identitas akun dan preferensi drop point Anda' },
+    profil: { title: 'Profil Nasabah', sub: 'Kelola informasi identitas akun, kartu anggota digital, dan preferensi layanan' },
   };
 
   return (
@@ -928,176 +929,22 @@ export default function DashboardPage() {
               TAB 5: FITUR PROFIL PENGGUNA
           ══════════════════════════════════════ */}
           {activeTab === 'profil' && (
-            <div className="max-w-4xl mx-auto space-y-6">
-
-              {profileSuccessMsg && (
-                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 shadow-sm animate-fade-in">
-                  <IconCheck className="w-4 h-4 text-emerald-600" />
-                  <span>{profileSuccessMsg}</span>
-                </div>
-              )}
-
-              {/* Profile Header Card */}
-              <div
-                className="rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-lg"
-                style={{ background: 'linear-gradient(135deg, #104929 0%, #165b34 50%, #1f7746 100%)' }}
-              >
-                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 relative z-10">
-                  <div className="w-20 h-20 rounded-2xl bg-emerald-300 text-slate-900 flex items-center justify-center text-3xl font-black shadow-xl border-2 border-white/30">
-                    {userProfile.avatarInitial}
-                  </div>
-                  <div className="flex-1 text-center sm:text-left space-y-1.5">
-                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                      <h3 className="text-xl font-extrabold text-white">{userProfile.nama}</h3>
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-400/25 text-emerald-200 border border-emerald-300/30">
-                        <IconShield className="w-3 h-3" />
-                        Nasabah Terverifikasi
-                      </span>
-                    </div>
-                    <p className="text-xs text-emerald-100/80">
-                      ID Nasabah: <strong className="text-white">{userProfile.idNasabah}</strong> · Bergabung sejak {userProfile.joinDate}
-                    </p>
-                    <p className="text-xs text-emerald-200 font-medium">
-                      Peringkat: <strong className="text-white">{userProfile.level}</strong>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Quick stats on banner */}
-                <div className="grid grid-cols-3 gap-3 mt-6 pt-6 border-t border-white/15 text-center">
-                  <div>
-                    <p className="text-[10px] text-emerald-200 font-medium">Total Sampah</p>
-                    <p className="text-lg font-extrabold text-white mt-0.5">{impact.totalKg} kg</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-emerald-200 font-medium">Saldo Poin</p>
-                    <p className="text-lg font-extrabold text-amber-300 mt-0.5">{impact.totalPoin} Pts</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-emerald-200 font-medium">CO₂ Dicegah</p>
-                    <p className="text-lg font-extrabold text-white mt-0.5">{impact.totalEmisi} kg</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Edit Profile Form */}
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-emerald-900/10 shadow-sm space-y-6">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                  <div>
-                    <h4 className="text-base font-bold text-slate-900">Informasi Pribadi & Kontak</h4>
-                    <p className="text-xs text-slate-500 mt-0.5">Perubahan nama akan langsung memperbarui sapaan Anda di Beranda</p>
-                  </div>
-                  <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-                    <IconEdit className="w-4 h-4" />
-                  </span>
-                </div>
-
-                <form onSubmit={handleUpdateProfile} className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700">Nama Lengkap</label>
-                      <input
-                        type="text"
-                        value={userProfile.nama}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setUserProfile((prev) => ({
-                            ...prev,
-                            nama: val,
-                            avatarInitial: val ? val[0].toUpperCase() : 'U',
-                          }));
-                        }}
-                        required
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700">Alamat Email</label>
-                      <input
-                        type="email"
-                        value={userProfile.email}
-                        onChange={(e) => setUserProfile({ ...userProfile, email: e.target.value })}
-                        required
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700">Nomor Handphone / WhatsApp</label>
-                      <input
-                        type="text"
-                        value={userProfile.phone}
-                        onChange={(e) => setUserProfile({ ...userProfile, phone: e.target.value })}
-                        required
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700">Mitra Drop Point Utama</label>
-                      <select
-                        value={userProfile.dropPointFavorit}
-                        onChange={(e) => setUserProfile({ ...userProfile, dropPointFavorit: e.target.value })}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      >
-                        {!mitraLocations.some((location) => location.name === userProfile.dropPointFavorit) && (
-                          <option value={userProfile.dropPointFavorit}>{userProfile.dropPointFavorit} (data tersimpan)</option>
-                        )}
-                        {mitraLocations.map((location) => (
-                          <option key={location.id} value={location.name}>
-                            {location.name} — {location.district}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700">Alamat Tempat Tinggal (Penjemputan Sampah)</label>
-                    <textarea
-                      rows={2}
-                      value={userProfile.address}
-                      onChange={(e) => setUserProfile({ ...userProfile, address: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-
-                  <div className="pt-2 flex justify-end">
-                    <button
-                      type="submit"
-                      className="px-6 py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-md hover:scale-[1.02]"
-                      style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)' }}
-                    >
-                      Simpan Perubahan Profil
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              {/* Achievements & Badges */}
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-emerald-900/10 shadow-sm space-y-4">
-                <h4 className="text-base font-bold text-slate-900">Lencana & Prestasi Lingkungan</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {[
-                    { title: 'Pioneer Perdana', desc: 'Menyetor sampah pertama kali', status: 'Diraih', color: '#16a34a' },
-                    { title: 'Penyelamat 3kg CO₂', desc: 'Mencegah emisi > 3 kg karbon', status: 'Diraih', color: '#0284c7' },
-                    { title: 'Sahabat Daur Ulang', desc: 'Menyetor 3 jenis sampah berbeda', status: 'Diraih', color: '#d97706' },
-                  ].map((b) => (
-                    <div key={b.title} className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-900">{b.title}</span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-emerald-700 bg-emerald-100">
-                          {b.status}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-500">{b.desc}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-            </div>
+            <ProfilSection
+              userProfile={userProfile}
+              setUserProfile={setUserProfile}
+              impact={impact}
+              mitraLocations={mitraLocations}
+              profileSuccessMsg={profileSuccessMsg}
+              onSaveProfile={(updated) => {
+                try {
+                  localStorage.setItem('ecobank_user_profile', JSON.stringify(updated));
+                  setProfileSuccessMsg('Profil berhasil diperbarui!');
+                  setTimeout(() => setProfileSuccessMsg(''), 3500);
+                } catch (err) {
+                  console.warn('Save profile error:', err);
+                }
+              }}
+            />
           )}
 
         </main>
