@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 import { useWaste } from '@/hooks/useWaste';
 import {
   getGoogleMapsDirectionsUrl,
@@ -21,11 +23,15 @@ type Metric = 'kg' | 'co2' | 'nasabah';
 
 interface TransactionItem {
   id: string;
+  dbId?: string;
+  userDbId?: string;
   userId: string;
   userName: string;
   type: 'setor' | 'tukar';
   category: string;
   weightOrUnit: string;
+  weightKg?: number;
+  co2SavedKg?: number;
   points: number;
   time: string;
   location: string;
@@ -34,6 +40,7 @@ interface TransactionItem {
 
 interface NasabahItem {
   id: string;
+  dbId?: string;
   nama: string;
   email: string;
   telepon: string;
@@ -41,6 +48,7 @@ interface NasabahItem {
   level: string;
   poin: number;
   totalKg: number;
+  totalCo2?: number;
   frekuensi: number;
   mitraFavorit: string;
   joinDate: string;
@@ -313,7 +321,10 @@ const inputCls = `w-full px-3 py-2.5 rounded-lg text-sm bg-white border border-s
 
 // ─── Halaman Admin ───────────────────────────────────────────────────────────
 export default function AdminPage() {
+  const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -362,56 +373,160 @@ export default function AdminPage() {
   const [toast, setToast] = useState('');
   const notifRef = useRef<HTMLDivElement>(null);
 
-  // ── Muat data persisten dari localStorage agar perubahan tidak reset saat login ulang / reload ──
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const savedAuth = localStorage.getItem(STORAGE_KEY_AUTH);
-      if (savedAuth === 'true') {
-        setIsAuthenticated(true);
-      }
+  const fetchAdminData = useCallback(async () => {
+    const [txRes, profRes, dpRes, wcRes] = await Promise.all([
+      supabase
+        .from('transactions')
+        .select('*, profiles(id, full_name, member_code, email, points_balance, total_weight_kg, total_co2_saved_kg), drop_points(name)')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('profiles')
+        .select('*, drop_points(name)')
+        .eq('role', 'nasabah')
+        .order('joined_at', { ascending: false }),
+      supabase.from('drop_points').select('*').order('mitra_code', { ascending: true }),
+      supabase.from('waste_categories').select('*').order('name', { ascending: true }),
+    ]);
 
-      const savedMitra = localStorage.getItem(STORAGE_KEY_MITRA);
-      if (savedMitra) {
-        const parsed = JSON.parse(savedMitra);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          // Hanya pulihkan status operasional; alamat dan jadwal selalu mengikuti data lokasi terbaru.
-          const merged = initialMitra.map((init) => {
-            const found = parsed.find((p: MitraInfo) => p.id === init.id);
-            return found ? { ...init, status: found.status } : init;
-          });
-          setMitra(merged);
-        }
-      }
+    if (dpRes.data && dpRes.data.length > 0) {
+      setMitra(
+        dpRes.data.map((dp) => ({
+          id: dp.id,
+          name: dp.name,
+          district: dp.district,
+          address: dp.address,
+          phone: dp.phone || 'Belum Tersedia',
+          openingHours: Array.isArray(dp.operating_hours) ? dp.operating_hours : ['Belum Tersedia'],
+          latitude: dp.latitude,
+          longitude: dp.longitude,
+          status: dp.status === 'Libur' || dp.is_active === false ? 'Libur' : 'Aktif',
+        }))
+      );
+    }
 
-      const savedTx = localStorage.getItem(STORAGE_KEY_TX);
-      if (savedTx) {
-        const parsedTx = JSON.parse(savedTx);
-        if (Array.isArray(parsedTx) && parsedTx.length > 0) {
-          setTransactions(parsedTx);
-        }
-      }
+    if (wcRes.data && wcRes.data.length > 0) {
+      setCategories(
+        wcRes.data.map((wc) => ({
+          id: wc.id,
+          nama: wc.name,
+          poinPerKg: Number(wc.points_per_kg),
+          emisiPerKg: Number(wc.co2_per_kg),
+        }))
+      );
+      seeded.current = true;
+    }
 
-      const savedCat = localStorage.getItem(STORAGE_KEY_CATEGORIES);
-      if (savedCat) {
-        const parsedCat = JSON.parse(savedCat);
-        if (Array.isArray(parsedCat) && parsedCat.length > 0) {
-          setCategories(parsedCat);
-          seeded.current = true;
-        }
-      }
+    const txRows = txRes.data || [];
+    if (txRes.data) {
+      setTransactions(
+        txRes.data.map((t) => {
+          const prof = Array.isArray(t.profiles) ? t.profiles[0] : t.profiles;
+          const dp = Array.isArray(t.drop_points) ? t.drop_points[0] : t.drop_points;
+          const mappedStatus: TxStatus =
+            t.status === 'Terverifikasi' || t.status === 'Berhasil'
+              ? 'completed'
+              : t.status === 'Ditolak'
+                ? 'rejected'
+                : 'pending';
+          const created = t.created_at
+            ? new Date(t.created_at).toLocaleDateString('id-ID', {
+                day: '2-digit',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : 'Baru saja';
 
-      const savedNasabah = localStorage.getItem(STORAGE_KEY_NASABAH);
-      if (savedNasabah) {
-        const parsedNasabah = JSON.parse(savedNasabah);
-        if (Array.isArray(parsedNasabah) && parsedNasabah.length > 0) {
-          setNasabah(parsedNasabah);
-        }
-      }
-    } catch (err) {
-      console.warn('Gagal membaca data dari localStorage:', err);
+          return {
+            id: t.transaction_code || t.id,
+            dbId: t.id,
+            userDbId: prof?.id || t.user_id,
+            userId: prof?.member_code || '-',
+            userName: prof?.full_name || 'Nasabah',
+            type: t.type === 'Tukar' ? 'tukar' : 'setor',
+            category: t.waste_detail || t.description,
+            weightOrUnit: t.type === 'Tukar' ? '1 unit' : `${Number(t.weight_kg || 0).toFixed(1)} kg`,
+            weightKg: Number(t.weight_kg || 0),
+            co2SavedKg: Number(t.co2_saved_kg || 0),
+            points: Number(t.points_amount),
+            time: created,
+            location: dp?.name || t.payout_detail || 'Aplikasi',
+            status: mappedStatus,
+          };
+        })
+      );
+    }
+
+    if (profRes.data) {
+      setNasabah(
+        profRes.data.map((p) => {
+          const dp = Array.isArray(p.drop_points) ? p.drop_points[0] : p.drop_points;
+          const freq = txRows.filter((t) => t.user_id === p.id && t.type === 'Setor').length;
+          return {
+            id: p.member_code,
+            dbId: p.id,
+            nama: p.full_name,
+            email: p.email,
+            telepon: p.phone || '-',
+            kecamatan: p.district || p.address || 'Kota Banda Aceh',
+            level: p.level || 'Level 1 · Eco Starter',
+            poin: Number(p.points_balance || 0),
+            totalKg: Number(p.total_weight_kg || 0),
+            totalCo2: Number(p.total_co2_saved_kg || 0),
+            frekuensi: freq,
+            mitraFavorit: dp?.name || mitraLocations[0].name,
+            joinDate: p.joined_at
+              ? new Date(p.joined_at).toLocaleDateString('id-ID', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })
+              : '-',
+            status: p.status === 'Nonaktif' ? 'Nonaktif' : 'Aktif',
+          };
+        })
+      );
     }
   }, []);
+
+  // ── Proteksi Halaman Admin & Fetch Data Awal dari Supabase ──
+  useEffect(() => {
+    let isMounted = true;
+    async function verifyAndLoadAdmin() {
+      const { data: { user }, error: authErr } = await supabase.auth.getUser();
+      if (authErr || !user) {
+        if (isMounted) {
+          setIsAuthenticated(false);
+          setAuthChecking(false);
+        }
+        return;
+      }
+
+      const { data: profile, error: profErr } = await supabase
+        .from('profiles')
+        .select('id, role, full_name')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (profErr || !profile || profile.role !== 'admin') {
+        if (isMounted) {
+          setIsAuthenticated(false);
+          setAuthChecking(false);
+        }
+        return;
+      }
+
+      if (!isMounted) return;
+      setIsAuthenticated(true);
+      await fetchAdminData();
+      if (isMounted) setAuthChecking(false);
+    }
+
+    verifyAndLoadAdmin();
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchAdminData]);
 
   // Sinkronkan master data dari hook sekali saja saat data tersedia jika belum ada di storage
   useEffect(() => {
@@ -465,43 +580,165 @@ export default function AdminPage() {
     e.preventDefault();
     setLoading(true);
     setAuthError('');
-    await new Promise((r) => setTimeout(r, 500));
-    if (password === 'admin123' || password === 'ecobank2026') {
-      setIsAuthenticated(true);
+
+    try {
+      const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (authErr || !authData.user) {
+        setAuthError('Email atau kata sandi salah. Periksa kembali kredensial administrator Anda.');
+        setLoading(false);
+        return;
+      }
+
+      const { data: profile, error: profErr } = await supabase
+        .from('profiles')
+        .select('*, drop_points(name)')
+        .eq('auth_user_id', authData.user.id)
+        .single();
+
+      if (profErr || !profile || profile.role !== 'admin') {
+        await supabase.auth.signOut();
+        setAuthError('Akun ini tidak memiliki hak akses Administrator.');
+        setLoading(false);
+        return;
+      }
+
+      await supabase
+        .from('profiles')
+        .update({ last_login_at: new Date().toISOString() })
+        .eq('id', profile.id);
+
+      const favoriteDp = Array.isArray(profile.drop_points)
+        ? profile.drop_points[0]?.name
+        : profile.drop_points?.name;
+
+      const joinDateFormatted = profile.joined_at
+        ? new Date(profile.joined_at).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
+        : 'September 2026';
+
       try {
-        localStorage.setItem(STORAGE_KEY_AUTH, 'true');
-      } catch (e) {}
+        localStorage.setItem(
+          'ecobank_user_profile',
+          JSON.stringify({
+            id: profile.id,
+            nama: profile.full_name,
+            email: profile.email,
+            phone: profile.phone || '',
+            address: profile.address || '',
+            district: profile.district || '',
+            joinDate: joinDateFormatted,
+            level: profile.level || 'Administrator',
+            idNasabah: profile.member_code,
+            dropPointFavorit: favoriteDp || mitraLocations[0].name,
+            payoutMethod: profile.payout_method || 'GoPay',
+            payoutAccount: profile.payout_account || '',
+            role: profile.role,
+            avatarInitial: (profile.full_name || 'A').charAt(0).toUpperCase(),
+          })
+        );
+      } catch (err) {
+        console.warn('LocalStorage error:', err);
+      }
+
+      setIsAuthenticated(true);
+      await fetchAdminData();
       setPassword('');
-      setToast('Selamat datang, Administrator');
-    } else {
-      setAuthError('Kata sandi salah. Periksa kembali, atau pakai sandi demo di bawah.');
+      setToast(`Selamat datang, ${profile.full_name}`);
+    } catch {
+      setAuthError('Terjadi gangguan koneksi ke server. Silakan coba lagi.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     try {
       localStorage.removeItem(STORAGE_KEY_AUTH);
+      localStorage.removeItem('ecobank_user_profile');
     } catch (e) {}
-    setToast('Berhasil keluar dari admin');
+    setIsAuthenticated(false);
+    setToast('Berhasil keluar dari Portal Admin');
   };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await new Promise((r) => setTimeout(r, 600));
+    await fetchAdminData();
     setIsRefreshing(false);
-    setToast('Data diperbarui');
+    setToast('Data diperbarui dari Supabase');
   };
 
-  const decideTx = (id: string, status: 'completed' | 'rejected') => {
-    setTransactions((prev) => {
-      const next = prev.map((t) => (t.id === id ? { ...t, status } : t));
-      try {
-        localStorage.setItem(STORAGE_KEY_TX, JSON.stringify(next));
-      } catch (e) {}
-      return next;
-    });
+  const computeLevel = (totalKg: number): string => {
+    if (totalKg >= 50) return 'Level 4 · Eco Champion';
+    if (totalKg >= 15) return 'Level 3 · Eco Guardian';
+    if (totalKg >= 5) return 'Level 2 · Green Pioneer';
+    return 'Level 1 · Eco Starter';
+  };
+
+  const decideTx = async (id: string, status: 'completed' | 'rejected') => {
+    const targetTx = transactions.find((t) => t.id === id);
+    if (!targetTx) return;
+
+    const dbStatus = status === 'completed' ? 'Terverifikasi' : 'Ditolak';
+    const verifiedAt = new Date().toISOString();
+
+    if (targetTx.dbId) {
+      const { error: txErr } = await supabase
+        .from('transactions')
+        .update({ status: dbStatus, verified_at: verifiedAt })
+        .eq('id', targetTx.dbId);
+
+      if (txErr) {
+        setToast(`Gagal memperbarui transaksi: ${txErr.message}`);
+        return;
+      }
+
+      if (status === 'completed' && targetTx.type === 'setor' && targetTx.userDbId) {
+        const targetNasabah = nasabah.find((n) => n.dbId === targetTx.userDbId);
+        const currentPoints = targetNasabah ? targetNasabah.poin : 0;
+        const currentWeight = targetNasabah ? targetNasabah.totalKg : 0;
+        const currentCo2 = targetNasabah?.totalCo2 ?? 0;
+
+        const newPoints = currentPoints + targetTx.points;
+        const newWeight = Number((currentWeight + (targetTx.weightKg || 0)).toFixed(2));
+        const newCo2 = Number((currentCo2 + (targetTx.co2SavedKg || 0)).toFixed(2));
+        const newLevel = computeLevel(newWeight);
+
+        const { error: profErr } = await supabase
+          .from('profiles')
+          .update({
+            points_balance: newPoints,
+            total_weight_kg: newWeight,
+            total_co2_saved_kg: newCo2,
+            level: newLevel,
+          })
+          .eq('id', targetTx.userDbId);
+
+        if (profErr) {
+          setToast(`Transaksi terverifikasi, namun gagal update poin nasabah: ${profErr.message}`);
+        } else {
+          setNasabah((prev) =>
+            prev.map((n) =>
+              n.dbId === targetTx.userDbId
+                ? {
+                    ...n,
+                    poin: newPoints,
+                    totalKg: newWeight,
+                    totalCo2: newCo2,
+                    level: newLevel,
+                    frekuensi: n.frekuensi + 1,
+                  }
+                : n
+            )
+          );
+        }
+      }
+    }
+
+    setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
     setToast(status === 'completed' ? `${id} diverifikasi, poin masuk ke nasabah` : `${id} ditolak`);
   };
 
@@ -514,16 +751,27 @@ export default function AdminPage() {
     setToast(`${filteredTransactions.length} transaksi diekspor ke CSV`);
   };
 
-  const updateMitra = (id: string, patch: Partial<MitraInfo>) => {
-    setMitra((prev) => {
-      const next = prev.map((m) => (m.id === id ? { ...m, ...patch } : m));
-      try {
-        localStorage.setItem(STORAGE_KEY_MITRA, JSON.stringify(next));
-      } catch (err) {
-        console.warn('Gagal menyimpan mitra ke localStorage:', err);
+  const updateMitra = async (id: string, patch: Partial<MitraInfo>) => {
+    setMitra((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (isUuid) {
+      const { error } = await supabase
+        .from('drop_points')
+        .update({
+          ...(patch.status ? { status: patch.status, is_active: patch.status === 'Aktif' } : {}),
+          ...(patch.name ? { name: patch.name } : {}),
+          ...(patch.address ? { address: patch.address } : {}),
+          ...(patch.phone ? { phone: patch.phone } : {}),
+        })
+        .eq('id', id);
+
+      if (error) {
+        setToast(`Gagal memperbarui mitra: ${error.message}`);
+        return;
       }
-      return next;
-    });
+      setToast('Status mitra diperbarui di database');
+    }
   };
 
   const resetMitraData = () => {
@@ -548,7 +796,7 @@ export default function AdminPage() {
     setFormOpen(true);
   };
 
-  const saveCategory = (e: React.FormEvent) => {
+  const saveCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     const nama = form.nama.trim();
     const poin = Number(form.poin);
@@ -561,65 +809,91 @@ export default function AdminPage() {
     if (!Number.isFinite(emisi) || emisi < 0) return setFormError('Faktor emisi harus berupa angka, minimal 0.');
 
     if (editing) {
-      setCategories((prev) => {
-        const next = prev.map((c) => (c.id === editing.id ? { ...c, nama, poinPerKg: poin, emisiPerKg: emisi } : c));
-        try {
-          localStorage.setItem(STORAGE_KEY_CATEGORIES, JSON.stringify(next));
-        } catch (e) {}
-        return next;
-      });
+      const { error } = await supabase
+        .from('waste_categories')
+        .update({ name: nama, points_per_kg: poin, co2_per_kg: emisi })
+        .eq('id', editing.id);
+
+      if (error) {
+        setFormError(`Gagal menyimpan kategori: ${error.message}`);
+        return;
+      }
+      setCategories((prev) =>
+        prev.map((c) => (c.id === editing.id ? { ...c, nama, poinPerKg: poin, emisiPerKg: emisi } : c))
+      );
       setToast(`Kategori ${nama} disimpan`);
     } else {
-      const nextIdNum = Math.max(0, ...categories.map((c) => parseInt(c.id.replace(/\D/g, ''), 10) || 0)) + 1;
-      const newCat: WasteCategory = { id: `WST-${String(nextIdNum).padStart(3, '0')}`, nama, poinPerKg: poin, emisiPerKg: emisi };
-      setCategories((prev) => {
-        const next = [...prev, newCat];
-        try {
-          localStorage.setItem(STORAGE_KEY_CATEGORIES, JSON.stringify(next));
-        } catch (e) {}
-        return next;
-      });
+      const slug = nama
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+      const { data: inserted, error } = await supabase
+        .from('waste_categories')
+        .insert({
+          slug: `${slug}-${Date.now().toString().slice(-3)}`,
+          name: nama,
+          points_per_kg: poin,
+          co2_per_kg: emisi,
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (error || !inserted) {
+        setFormError(`Gagal menambah kategori: ${error?.message || 'Unknown error'}`);
+        return;
+      }
+      const newCat: WasteCategory = { id: inserted.id, nama: inserted.name, poinPerKg: poin, emisiPerKg: emisi };
+      setCategories((prev) => [...prev, newCat]);
       setToast(`Kategori ${nama} ditambahkan`);
     }
     setFormOpen(false);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleting) return;
-    setCategories((prev) => {
-      const next = prev.filter((c) => c.id !== deleting.id);
-      try {
-        localStorage.setItem(STORAGE_KEY_CATEGORIES, JSON.stringify(next));
-      } catch (e) {}
-      return next;
-    });
+    const { error } = await supabase.from('waste_categories').delete().eq('id', deleting.id);
+    if (error) {
+      setToast(`Gagal menghapus kategori: ${error.message}`);
+      setDeleting(null);
+      return;
+    }
+    setCategories((prev) => prev.filter((c) => c.id !== deleting.id));
     setToast(`Kategori ${deleting.nama} dihapus`);
     setDeleting(null);
   };
 
   // ── Aksi Nasabah ──
-  const updateNasabahStatus = (id: string, newStatus: 'Aktif' | 'Nonaktif') => {
-    setNasabah((prev) => {
-      const next = prev.map((n) => (n.id === id ? { ...n, status: newStatus } : n));
-      try {
-        localStorage.setItem(STORAGE_KEY_NASABAH, JSON.stringify(next));
-      } catch (e) {}
-      return next;
-    });
+  const updateNasabahStatus = async (id: string, newStatus: 'Aktif' | 'Nonaktif') => {
+    const target = nasabah.find((n) => n.id === id);
+    if (target?.dbId) {
+      const { error } = await supabase.from('profiles').update({ status: newStatus }).eq('id', target.dbId);
+      if (error) {
+        setToast(`Gagal mengubah status nasabah: ${error.message}`);
+        return;
+      }
+    }
+    setNasabah((prev) => prev.map((n) => (n.id === id ? { ...n, status: newStatus } : n)));
     setToast(`Status nasabah ${id} diubah ke ${newStatus}`);
     if (selectedNasabah && selectedNasabah.id === id) {
       setSelectedNasabah((prev) => (prev ? { ...prev, status: newStatus } : null));
     }
   };
 
-  const addBonusPoints = (id: string, amount: number) => {
-    setNasabah((prev) => {
-      const next = prev.map((n) => (n.id === id ? { ...n, poin: n.poin + amount } : n));
-      try {
-        localStorage.setItem(STORAGE_KEY_NASABAH, JSON.stringify(next));
-      } catch (e) {}
-      return next;
-    });
+  const addBonusPoints = async (id: string, amount: number) => {
+    const target = nasabah.find((n) => n.id === id);
+    const newPoints = (target?.poin || 0) + amount;
+    if (target?.dbId) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ points_balance: newPoints })
+        .eq('id', target.dbId);
+      if (error) {
+        setToast(`Gagal menambah poin: ${error.message}`);
+        return;
+      }
+    }
+    setNasabah((prev) => prev.map((n) => (n.id === id ? { ...n, poin: n.poin + amount } : n)));
     setToast(`+${amount} poin berhasil ditambahkan`);
     if (selectedNasabah && selectedNasabah.id === id) {
       setSelectedNasabah((prev) => (prev ? { ...prev, poin: prev.poin + amount } : null));
@@ -758,8 +1032,16 @@ export default function AdminPage() {
   ];
 
   // ═════════════════════════════════════════════════════════════════════════
-  // LOGIN
+  // PROTEKSI ADMIN & LOGIN PORTAL ADMIN
   // ═════════════════════════════════════════════════════════════════════════
+  if (authChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-600 text-sm font-medium">
+        Memverifikasi akses administrator...
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen relative flex flex-col justify-between px-4 py-6 sm:px-8 font-sans bg-neutral-950">
@@ -786,8 +1068,8 @@ export default function AdminPage() {
             </div>
 
             <div className="md:col-span-3 p-8 sm:p-10 flex flex-col justify-center">
-              <h1 className="text-xl font-semibold text-slate-900">Masuk ke dashboard</h1>
-              <p className="text-sm text-slate-600 mt-1.5 mb-6">Masukkan kata sandi petugas untuk melanjutkan.</p>
+              <h1 className="text-xl font-semibold text-slate-900">Masuk ke Portal Admin</h1>
+              <p className="text-sm text-slate-600 mt-1.5 mb-6">Masukkan email dan kata sandi petugas untuk melanjutkan.</p>
 
               {authError && (
                 <p role="alert" className="mb-4 text-sm text-red-700 border-l-2 border-red-600 pl-3 py-1">
@@ -797,6 +1079,21 @@ export default function AdminPage() {
 
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
+                  <label htmlFor="admin-email" className="block text-sm font-medium text-slate-800 mb-1.5">
+                    Email Admin
+                  </label>
+                  <input
+                    id="admin-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); setAuthError(''); }}
+                    placeholder="admin@ecobank.id"
+                    className={inputCls}
+                    autoFocus
+                    required
+                  />
+                </div>
+                <div>
                   <label htmlFor="admin-pass" className="block text-sm font-medium text-slate-800 mb-1.5">
                     Kata sandi
                   </label>
@@ -805,9 +1102,9 @@ export default function AdminPage() {
                       id="admin-pass"
                       type={showPass ? 'text' : 'password'}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => { setPassword(e.target.value); setAuthError(''); }}
+                      placeholder="••••••••"
                       className={`${inputCls} pr-11`}
-                      autoFocus
                       required
                     />
                     <button
@@ -821,15 +1118,15 @@ export default function AdminPage() {
                   </div>
                 </div>
                 <button type="submit" disabled={loading} className={`${btnPrimary} w-full`}>
-                  {loading ? 'Memeriksa…' : 'Masuk'}
+                  {loading ? 'Memeriksa…' : 'Masuk ke Portal Admin'}
                 </button>
               </form>
 
               <p className="mt-5 text-sm text-slate-500">
-                Mode demo:{' '}
-                <button type="button" onClick={() => setPassword('admin123')} className="font-mono text-slate-800 underline underline-offset-2 hover:text-emerald-800">
-                  isi sandi demo
-                </button>
+                Bukan admin?{' '}
+                <Link href="/login" className="text-emerald-700 font-semibold hover:underline">
+                  Masuk sebagai Nasabah
+                </Link>
               </p>
             </div>
           </div>

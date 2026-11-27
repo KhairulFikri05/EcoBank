@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { EducationArticleItem } from './types';
 import {
   IconBook,
   IconSearch,
@@ -83,17 +84,34 @@ export function EdukasiSection({
   onNavigateSetor,
   expandedArticle,
   setExpandedArticle,
+  articles,
 }: {
   onNavigateSetor: () => void;
   expandedArticle: number | null;
   setExpandedArticle: (id: number | null) => void;
+  articles?: EducationArticleItem[];
 }) {
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua Materi');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   const categories = ['Semua Materi', 'Dasar', 'Plastik', 'Lingkungan'];
 
-  const filteredArticles = educationArticles.filter((article) => {
+  const sourceArticles =
+    articles && articles.length > 0
+      ? articles.map((a) => ({
+          ...a,
+          icon:
+            a.category === 'Plastik' ? (
+              <WasteIcon id="plastik" className="w-5 h-5" />
+            ) : a.category === 'Lingkungan' ? (
+              <IconLeaf className="w-5 h-5" />
+            ) : (
+              <IconTrash className="w-5 h-5" />
+            ),
+        }))
+      : educationArticles;
+
+  const filteredArticles = sourceArticles.filter((article) => {
     const matchesCat =
       selectedCategory === 'Semua Materi' || article.category === selectedCategory;
     const q = searchQuery.trim().toLowerCase();
@@ -107,7 +125,7 @@ export function EdukasiSection({
   });
 
   const activeModalArticle =
-    educationArticles.find((a) => a.id === expandedArticle) || null;
+    sourceArticles.find((a) => a.id === expandedArticle) || null;
 
   return (
     <div className="space-y-6">
