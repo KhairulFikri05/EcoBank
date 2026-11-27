@@ -3,13 +3,18 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { getGoogleMapsDirectionsUrl, mitraLocations } from '@/lib/mitraLocations';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+import { getGoogleMapsDirectionsUrl, mitraLocations, type MitraLocation } from '@/lib/mitraLocations';
 import {
   TabId,
   Transaction,
   Impact,
   DropoffPayload,
+  DropPointOption,
+  WasteItem,
   RewardItem,
+  EducationArticleItem,
   UserProfile,
 } from '@/components/dashboard/types';
 import {
@@ -60,6 +65,7 @@ function getDynamicGreeting() {
 
 // ─── Main Page Component ──────────────────────────────────────────────────────
 export default function DashboardPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabId>('beranda');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedArticle, setExpandedArticle] = useState<number | null>(null);
@@ -68,214 +74,375 @@ export default function DashboardPage() {
   const [headerScrolled, setHeaderScrolled] = useState(false);
   const mainScrollRef = useRef<HTMLDivElement>(null);
 
+  const [dropPointsList, setDropPointsList] = useState<DropPointOption[]>([]);
+  const [mitraLocationsState, setMitraLocationsState] = useState<MitraLocation[]>(mitraLocations);
+  const [wasteCategoriesState, setWasteCategoriesState] = useState<WasteItem[]>([]);
+  const [rewardsList, setRewardsList] = useState<RewardItem[]>(availableRewards);
+  const [articlesList, setArticlesList] = useState<EducationArticleItem[]>([]);
+
   // ─── User Profile State ─────────────────────────────────────────────────────
   const [userProfile, setUserProfile] = useState<UserProfile>({
     nama: 'Rahmat Hidayat',
     email: 'user@ecobank.id',
     phone: '0812-3456-7890',
     address: 'Kec. Syiah Kuala, Kota Banda Aceh',
+    district: 'Kec. Syiah Kuala',
     joinDate: 'September 2026',
     level: 'Level 2 · Green Pioneer',
     idNasabah: 'EB-2026-089',
     dropPointFavorit: mitraLocations[0].name,
+    payoutMethod: 'GoPay',
+    payoutAccount: '0812-3456-7890',
+    notifVerification: true,
+    notifPickup: true,
     avatarInitial: 'R',
   });
 
-  // Client-side hydration: update greeting, sidebar, and scroll-aware header
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [impact, setImpact] = useState<Impact>({
+    totalKg: 0,
+    totalPoin: 0,
+    totalEmisi: 0,
+  });
+
+  // Client-side hydration & Supabase initial data fetch
   useEffect(() => {
     setGreeting(getDynamicGreeting());
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       setSidebarOpen(false);
     }
-    const el = mainScrollRef.current;
-    if (el) {
-      const handleScroll = () => setHeaderScrolled(el.scrollTop > 20);
-      el.addEventListener('scroll', handleScroll, { passive: true });
-      return () => el.removeEventListener('scroll', handleScroll);
-    }
-    try {
-      const saved = localStorage.getItem('ecobank_user_profile');
-      if (saved) {
-        setUserProfile(JSON.parse(saved));
-      } else {
-        const rawUser = localStorage.getItem('ecobank_user');
-        if (rawUser) {
-          const parsed = JSON.parse(rawUser);
-          if (parsed.nama || parsed.name) {
-            setUserProfile((prev) => ({
-              ...prev,
-              nama: parsed.nama || parsed.name,
-              email: parsed.email || prev.email,
-              avatarInitial: (parsed.nama || parsed.name)[0].toUpperCase(),
-            }));
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('LocalStorage error:', e);
-    }
-  }, []);
 
-  const handleUpdateProfile = (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      localStorage.setItem('ecobank_user_profile', JSON.stringify(userProfile));
-      setProfileSuccessMsg('Profil berhasil diperbarui!');
-      setTimeout(() => setProfileSuccessMsg(''), 3500);
-    } catch (e) {
-      console.warn('Save profile error:', e);
+    let isMounted = true;
+
+    async function loadDashboardData() {
+      const { data: { user }, error: authErr } = await supabase.auth.getUser();
+      if (authErr || !user) {
+        router.replace('/login');
+        return;
+      }
+
+      const { data: profile, error: profErr } = await supabase
+        .from('profiles')
+        .select('*, drop_points(id, name)')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      if (profErr || !profile || profile.role !== 'nasabah') {
+        router.replace('/login');
+        return;
+      }
+
+      const [dpRes, wcRes, rewRes, artRes, txRes] = await Promise.all([
+        supabase.from('drop_points').select('*').eq('is_active', true).order('mitra_code', { ascending: true }),
+        supabase.from('waste_categories').select('*').eq('is_active', true).order('name', { ascending: true }),
+        supabase.from('rewards').select('*').eq('is_active', true).order('points_cost', { ascending: true }),
+        supabase.from('education_articles').select('*').eq('is_published', true).order('id', { ascending: true }),
+        supabase
+          .from('transactions')
+          .select('*, drop_points(name)')
+          .eq('user_id', profile.id)
+          .order('created_at', { ascending: false }),
+      ]);
+
+      if (!isMounted) return;
+
+      const preferredDp = Array.isArray(profile.drop_points)
+        ? profile.drop_points[0]
+        : profile.drop_points;
+
+      const joinDateFormatted = profile.joined_at
+        ? new Date(profile.joined_at).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
+        : 'September 2026';
+
+      const mappedProfile: UserProfile = {
+        id: profile.id,
+        nama: profile.full_name,
+        email: profile.email,
+        phone: profile.phone || '',
+        address: profile.address || '',
+        district: profile.district || '',
+        joinDate: joinDateFormatted,
+        level: profile.level || 'Level 1 · Eco Starter',
+        idNasabah: profile.member_code,
+        dropPointFavorit: preferredDp?.name || dpRes.data?.[0]?.name || mitraLocations[0].name,
+        preferredDropPointId: preferredDp?.id || profile.preferred_drop_point_id || undefined,
+        payoutMethod: (profile.payout_method as UserProfile['payoutMethod']) || 'GoPay',
+        payoutAccount: profile.payout_account || profile.phone || '',
+        notifVerification: profile.notif_verification ?? true,
+        notifPickup: profile.notif_pickup ?? true,
+        lastLoginAt: profile.last_login_at,
+        role: profile.role,
+        avatarInitial: (profile.full_name || 'N').charAt(0).toUpperCase(),
+      };
+
+      setUserProfile(mappedProfile);
+      localStorage.setItem('ecobank_user_profile', JSON.stringify(mappedProfile));
+
+      setImpact({
+        totalKg: Number(profile.total_weight_kg || 0),
+        totalPoin: Number(profile.points_balance || 0),
+        totalEmisi: Number(profile.total_co2_saved_kg || 0),
+      });
+
+      if (dpRes.data && dpRes.data.length > 0) {
+        setDropPointsList(
+          dpRes.data.map((dp) => ({
+            id: dp.id,
+            mitraCode: dp.mitra_code,
+            name: dp.name,
+            district: dp.district,
+            address: dp.address,
+            phone: dp.phone,
+            hours: Array.isArray(dp.operating_hours) ? dp.operating_hours[0] || '08:00 - 16:00' : '08:00 - 16:00',
+            status: dp.status || 'Aktif',
+            latitude: dp.latitude,
+            longitude: dp.longitude,
+          }))
+        );
+
+        setMitraLocationsState(
+          dpRes.data.map((dp) => ({
+            id: dp.id,
+            name: dp.name,
+            district: dp.district,
+            address: dp.address,
+            phone: dp.phone || 'Belum Tersedia',
+            openingHours: Array.isArray(dp.operating_hours) ? dp.operating_hours : ['Belum Tersedia'],
+            latitude: dp.latitude,
+            longitude: dp.longitude,
+          }))
+        );
+      }
+
+      if (wcRes.data && wcRes.data.length > 0) {
+        setWasteCategoriesState(
+          wcRes.data.map((wc) => ({
+            id: wc.slug || wc.id,
+            uuid: wc.id,
+            slug: wc.slug,
+            nama: wc.name,
+            name: wc.name,
+            poinPerKg: Number(wc.points_per_kg),
+            emisiPerKg: Number(wc.co2_per_kg),
+          }))
+        );
+      }
+
+      if (rewRes.data && rewRes.data.length > 0) {
+        setRewardsList(
+          rewRes.data.map((r) => ({
+            id: r.reward_code || r.id,
+            uuid: r.id,
+            title: r.title,
+            category: r.category,
+            points: Number(r.points_cost),
+            provider: r.provider,
+            iconBg: r.icon_bg || '#16a34a',
+          }))
+        );
+      }
+
+      if (artRes.data && artRes.data.length > 0) {
+        setArticlesList(
+          artRes.data.map((a) => ({
+            id: a.id,
+            title: a.title,
+            excerpt: a.excerpt,
+            content: a.content,
+            category: a.category,
+            readTime: a.read_time,
+            coverImage: a.cover_image,
+          }))
+        );
+      }
+
+      if (txRes.data) {
+        setTransactions(
+          txRes.data.map((t) => {
+            const dpObj = Array.isArray(t.drop_points) ? t.drop_points[0] : t.drop_points;
+            const createdDate = t.created_at ? new Date(t.created_at) : new Date();
+            return {
+              id: t.id,
+              trxCode: t.transaction_code,
+              type: t.type === 'Tukar' ? 'Tukar' : 'Setor',
+              description: t.description,
+              amount: Number(t.points_amount),
+              date: createdDate.toLocaleDateString('id-ID', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              }),
+              monthGroup: createdDate
+                .toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
+                .toUpperCase(),
+              dropPoint: dpObj?.name || t.payout_detail || 'EcoBank',
+              status: t.status,
+              photoUrl: t.photo_url || null,
+              emisi: Number(t.co2_saved_kg || 0),
+              weight: Number(t.weight_kg || 0),
+              wasteDetail: t.waste_detail || undefined,
+            };
+          })
+        );
+      }
     }
+
+    loadDashboardData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem('ecobank_user_profile');
+    router.push('/login');
   };
 
-  const [transactions, setTransactions] = useState<Transaction[]>([
-    {
-      id: '1',
-      trxCode: '#TRX-2026-1012',
-      type: 'Setor',
-      description: 'Botol Plastik (2.0 kg)',
-      amount: 100,
-      date: '12 Okt 2026',
-      monthGroup: 'OKTOBER 2026',
-      dropPoint: 'Bank Sampah Syiah Kuala',
-      status: 'Terverifikasi',
-      photoUrl: '/images/plastik.jpeg',
-      emisi: 3.0,
-      weight: 2.0,
-      wasteDetail: '2.0 kg Botol Plastik',
-    },
-    {
-      id: '2',
-      trxCode: '#TRX-2026-1010',
-      type: 'Tukar',
-      description: 'Voucher e-Wallet GoPay Rp 10.000',
-      amount: -50,
-      date: '10 Okt 2026',
-      monthGroup: 'OKTOBER 2026',
-      dropPoint: 'Penukaran Instan',
-      status: 'Berhasil',
-    },
-    {
-      id: '3',
-      trxCode: '#TRX-2026-1008',
-      type: 'Setor',
-      description: 'Kardus & Kertas Bekas (5.0 kg)',
-      amount: 150,
-      date: '08 Okt 2026',
-      monthGroup: 'OKTOBER 2026',
-      dropPoint: 'Bank Sampah Ulee Kareng',
-      status: 'Terverifikasi',
-      photoUrl: '/images/kertas.jpeg',
-      emisi: 4.0,
-      weight: 5.0,
-      wasteDetail: '5.0 kg Kardus & Kertas',
-    },
-  ]);
-
-  const [impact, setImpact] = useState<Impact>({
-    totalKg: 7.0,
-    totalPoin: 200,
-    totalEmisi: 3.8,
-  });
-
-  const handleRedeemReward = (reward: RewardItem) => {
+  const handleRedeemReward = async (reward: RewardItem) => {
     if (impact.totalPoin < reward.points) {
       alert(`Poin Anda tidak mencukupi (${impact.totalPoin} / ${reward.points} Pts). Silakan setor sampah lagi untuk menambah poin!`);
       return;
     }
 
-    if (confirm(`Tukarkan ${reward.points} Poin dengan "${reward.title}"?`)) {
-      setImpact((prev) => ({
-        ...prev,
-        totalPoin: prev.totalPoin - reward.points,
-      }));
+    if (!confirm(`Tukarkan ${reward.points} Poin dengan "${reward.title}"?`)) {
+      return;
+    }
 
-      const newTx: Transaction = {
-        id: Date.now().toString(),
-        trxCode: `#TRX-2026-${String(Math.floor(1000 + Math.random() * 9000))}`,
-        type: 'Tukar',
-        description: reward.title,
-        amount: -reward.points,
-        date: 'Hari ini',
-        monthGroup: 'NOVEMBER 2026',
-        dropPoint: 'Penukaran Instan',
-        status: 'Berhasil',
-      };
-      setTransactions((prev) => [newTx, ...prev]);
+    const newBalance = impact.totalPoin - reward.points;
+    const trxCode = `#TRX-2026-${String(Math.floor(1000 + Math.random() * 9000))}`;
+    const payoutDetail = `${userProfile.payoutMethod || 'GoPay'} · ${userProfile.payoutAccount || userProfile.phone || 'Instan'}`;
+
+    if (userProfile.id) {
+      const { error: updErr } = await supabase
+        .from('profiles')
+        .update({ points_balance: newBalance })
+        .eq('id', userProfile.id);
+
+      if (updErr) {
+        alert(`Gagal memperbarui saldo poin: ${updErr.message}`);
+        return;
+      }
+
+      const { data: insertedTx, error: txErr } = await supabase
+        .from('transactions')
+        .insert({
+          transaction_code: trxCode,
+          user_id: userProfile.id,
+          reward_id: reward.uuid || null,
+          type: 'Tukar',
+          description: reward.title,
+          points_amount: -reward.points,
+          payout_detail: payoutDetail,
+          status: 'Berhasil',
+          verified_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (txErr) {
+        alert(`Gagal mencatat transaksi penukaran: ${txErr.message}`);
+        return;
+      }
+
+      setImpact((prev) => ({ ...prev, totalPoin: newBalance }));
+      const now = new Date();
+      setTransactions((prev) => [
+        {
+          id: insertedTx?.id || Date.now().toString(),
+          trxCode: insertedTx?.transaction_code || trxCode,
+          type: 'Tukar',
+          description: reward.title,
+          amount: -reward.points,
+          date: now.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
+          monthGroup: now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }).toUpperCase(),
+          dropPoint: payoutDetail,
+          status: 'Berhasil',
+        },
+        ...prev,
+      ]);
       alert(`Selamat! Penukaran "${reward.title}" berhasil diproses.`);
     }
   };
 
   const handleSaveDropoff = async (calculatedData: DropoffPayload) => {
+    if (!userProfile.id) return;
+
     const trxCode = `#TRX-2026-${String(Math.floor(1000 + Math.random() * 9000))}`;
-    const dropPointName = calculatedData.dropPoint || 'Bank Sampah Syiah Kuala';
+    const dropPointName = calculatedData.dropPoint || 'Bank Sampah Induk Sadar Mandiri';
     const desc = calculatedData.wasteDetail
       ? `Setoran ${calculatedData.wasteDetail}`
       : `Setoran Sampah (${(calculatedData.weight || 0).toFixed(1)} kg)`;
 
     try {
-      const res = await fetch('/api/dropoff', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: userProfile.idNasabah,
-          userName: userProfile.nama,
-          wasteType: calculatedData.wasteType || 'sampah-campuran',
-          weight: calculatedData.weight || 1,
-          totalPoin: calculatedData.totalPoin,
-          totalEmisi: calculatedData.totalEmisi,
-        }),
-      });
-      const result = await res.json();
-      if (res.ok) {
-        alert(`Berhasil! Tiket setoran: ${result.data?.ticketId || 'DROP-OK'} (+${calculatedData.totalPoin} Poin)`);
-        const newTx: Transaction = {
-          id: Date.now().toString(),
-          trxCode: result.data?.ticketId ? `#${result.data.ticketId}` : trxCode,
+      let uploadedPhotoUrl: string | null = null;
+      if (calculatedData.photoFile) {
+        const safeName = calculatedData.photoFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const storagePath = `${userProfile.id}/${Date.now()}_${safeName}`;
+        const { error: uploadErr } = await supabase.storage
+          .from('dropoff-photos')
+          .upload(storagePath, calculatedData.photoFile);
+
+        if (!uploadErr) {
+          const { data: urlData } = supabase.storage
+            .from('dropoff-photos')
+            .getPublicUrl(storagePath);
+          uploadedPhotoUrl = urlData.publicUrl;
+        } else {
+          console.warn('Upload photo warning:', uploadErr.message);
+        }
+      }
+
+      const isUuid = (val?: string) =>
+        Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val));
+
+      const { data: insertedTx, error: txErr } = await supabase
+        .from('transactions')
+        .insert({
+          transaction_code: trxCode,
+          user_id: userProfile.id,
+          drop_point_id: isUuid(calculatedData.dropPointId) ? calculatedData.dropPointId : null,
+          waste_category_id: isUuid(calculatedData.wasteCategoryId) ? calculatedData.wasteCategoryId : null,
           type: 'Setor',
           description: desc,
-          amount: calculatedData.totalPoin,
-          date: 'Hari ini',
-          monthGroup: 'NOVEMBER 2026',
-          dropPoint: dropPointName,
-          status: 'Terverifikasi',
-          photoUrl: calculatedData.photoUrl || null,
-          emisi: calculatedData.totalEmisi,
-          weight: calculatedData.weight,
-          wasteDetail: calculatedData.wasteDetail,
-        };
-        setTransactions((prev) => [newTx, ...prev]);
-        setImpact((prev) => ({
-          totalKg: Number((prev.totalKg + (calculatedData.weight || 0)).toFixed(1)),
-          totalPoin: prev.totalPoin + calculatedData.totalPoin,
-          totalEmisi: Number((prev.totalEmisi + calculatedData.totalEmisi).toFixed(2)),
-        }));
-      } else {
-        alert('Gagal menyimpan setoran.');
+          waste_detail: calculatedData.wasteDetail || desc,
+          weight_kg: calculatedData.weight || 0,
+          co2_saved_kg: calculatedData.totalEmisi || 0,
+          points_amount: calculatedData.totalPoin,
+          photo_url: uploadedPhotoUrl,
+          notes: calculatedData.notes || null,
+          status: 'Menunggu',
+        })
+        .select()
+        .single();
+
+      if (txErr) {
+        alert(`Gagal mengajukan setoran: ${txErr.message}`);
+        return;
       }
-    } catch (err) {
-      console.error(err);
-      alert('Setoran berhasil dicatat ke sistem.');
+
+      const now = new Date();
       const newTx: Transaction = {
-        id: Date.now().toString(),
-        trxCode,
+        id: insertedTx?.id || Date.now().toString(),
+        trxCode: insertedTx?.transaction_code || trxCode,
         type: 'Setor',
         description: desc,
         amount: calculatedData.totalPoin,
-        date: 'Hari ini',
-        monthGroup: 'NOVEMBER 2026',
+        date: now.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }),
+        monthGroup: now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }).toUpperCase(),
         dropPoint: dropPointName,
         status: 'Menunggu',
-        photoUrl: calculatedData.photoUrl || null,
+        photoUrl: uploadedPhotoUrl || calculatedData.photoUrl || null,
         emisi: calculatedData.totalEmisi,
         weight: calculatedData.weight,
         wasteDetail: calculatedData.wasteDetail,
       };
       setTransactions((prev) => [newTx, ...prev]);
-      setImpact((prev) => ({
-        totalKg: Number((prev.totalKg + (calculatedData.weight || 0)).toFixed(1)),
-        totalPoin: prev.totalPoin + calculatedData.totalPoin,
-        totalEmisi: Number((prev.totalEmisi + calculatedData.totalEmisi).toFixed(2)),
-      }));
+      alert(`Pengajuan setoran ${trxCode} berhasil dikirim! Menunggu verifikasi petugas.`);
+    } catch (err) {
+      console.error(err);
+      alert('Terjadi kesalahan saat mengirim pengajuan setoran.');
     }
   };
 
@@ -467,8 +634,10 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border backdrop-blur-md"
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border backdrop-blur-md cursor-pointer transition-opacity hover:opacity-85"
               style={headerScrolled ? {
                 background: 'rgba(22,163,74,0.08)',
                 color: '#15803d',
@@ -481,7 +650,7 @@ export default function DashboardPage() {
             >
               <IconLogout className="w-3.5 h-3.5" />
               <span>Keluar</span>
-            </span>
+            </button>
           </div>
         </header>
 
@@ -751,7 +920,7 @@ export default function DashboardPage() {
                       </div>
 
                       <div className="space-y-2.5">
-                        {mitraLocations.slice(0, 2).map((dp, idx) => {
+                        {mitraLocationsState.slice(0, 2).map((dp, idx) => {
                           const isNearest = idx === 0;
                           const distanceLabel = isNearest ? '0.8 km' : '1.6 km';
                           const hoursLabel = dp.openingHours[0] || '08:00 - 16:00';
@@ -829,7 +998,7 @@ export default function DashboardPage() {
 
                         {/* 4 Green Reward Cards */}
                         <div className="space-y-2.5">
-                          {availableRewards.map((rew) => {
+                          {rewardsList.map((rew) => {
                             const canAfford = impact.totalPoin >= rew.points;
                             const deficit = Math.max(0, rew.points - impact.totalPoin);
                             return (
@@ -901,7 +1070,11 @@ export default function DashboardPage() {
           ══════════════════════════════════════ */}
           {activeTab === 'setor' && (
             <div className="w-full pt-1">
-              <CalculatorSection onSave={handleSaveDropoff} />
+              <CalculatorSection
+                onSave={handleSaveDropoff}
+                dropPoints={dropPointsList}
+                wasteCategories={wasteCategoriesState}
+              />
             </div>
           )}
 
@@ -922,6 +1095,7 @@ export default function DashboardPage() {
               onNavigateSetor={() => setActiveTab('setor')}
               expandedArticle={expandedArticle}
               setExpandedArticle={setExpandedArticle}
+              articles={articlesList}
             />
           )}
 
@@ -933,10 +1107,31 @@ export default function DashboardPage() {
               userProfile={userProfile}
               setUserProfile={setUserProfile}
               impact={impact}
-              mitraLocations={mitraLocations}
+              mitraLocations={mitraLocationsState}
               profileSuccessMsg={profileSuccessMsg}
-              onSaveProfile={(updated) => {
+              onSaveProfile={async (updated) => {
                 try {
+                  if (updated.id) {
+                    const { error: updErr } = await supabase
+                      .from('profiles')
+                      .update({
+                        full_name: updated.nama,
+                        phone: updated.phone,
+                        address: updated.address,
+                        district: updated.district || null,
+                        preferred_drop_point_id: updated.preferredDropPointId || null,
+                        payout_method: updated.payoutMethod || 'GoPay',
+                        payout_account: updated.payoutAccount || updated.phone || null,
+                        notif_verification: updated.notifVerification ?? true,
+                        notif_pickup: updated.notifPickup ?? true,
+                      })
+                      .eq('id', updated.id);
+
+                    if (updErr) {
+                      alert(`Gagal menyimpan profil: ${updErr.message}`);
+                      return;
+                    }
+                  }
                   localStorage.setItem('ecobank_user_profile', JSON.stringify(updated));
                   setProfileSuccessMsg('Profil berhasil diperbarui!');
                   setTimeout(() => setProfileSuccessMsg(''), 3500);

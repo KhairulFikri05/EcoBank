@@ -3,42 +3,123 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 import { mitraLocations } from '@/lib/mitraLocations';
+
+function mapRegisterError(message: string): string {
+  const msg = message.toLowerCase();
+  if (msg.includes('already registered') || msg.includes('already exists') || msg.includes('user_already_exists')) {
+    return 'Email ini sudah terdaftar. Silakan gunakan email lain atau langsung masuk ke akun Anda.';
+  }
+  if (msg.includes('password') && (msg.includes('6') || msg.includes('short') || msg.includes('weak'))) {
+    return 'Kata sandi harus terdiri dari minimal 6 karakter.';
+  }
+  if (msg.includes('invalid email')) {
+    return 'Format alamat email tidak valid. Periksa kembali email Anda.';
+  }
+  return message || 'Terjadi kesalahan saat mendaftarkan akun. Silakan coba lagi.';
+}
 
 export default function RegisterPage() {
   const router = useRouter();
   const [form, setForm] = useState({ nama: '', email: '', password: '', konfirmasi: '' });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [showPass, setShowPass] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+    setError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (form.password !== form.konfirmasi) {
-      alert('Password dan konfirmasi password tidak cocok!');
+    setError('');
+
+    if (form.password.length < 6) {
+      setError('Kata sandi minimal harus 6 karakter.');
       return;
     }
+
+    if (form.password !== form.konfirmasi) {
+      setError('Kata sandi dan konfirmasi kata sandi tidak cocok.');
+      return;
+    }
+
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    localStorage.setItem(
-      'ecobank_user_profile',
-      JSON.stringify({
-        nama: form.nama,
-        email: form.email,
-        phone: '0812-xxxx-xxxx',
+    try {
+      const emailTrimmed = form.email.trim();
+      const namaTrimmed = form.nama.trim();
+
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: emailTrimmed,
+        password: form.password,
+      });
+
+      if (signUpError) {
+        setError(mapRegisterError(signUpError.message));
+        setLoading(false);
+        return;
+      }
+
+      if (!data.user) {
+        setError('Registrasi gagal: data pengguna tidak dikembalikan.');
+        setLoading(false);
+        return;
+      }
+
+      const randomDigits = Math.floor(100 + Math.random() * 900);
+      const memberCode = `EB-2026-${randomDigits}`;
+
+      const { error: profileError } = await supabase.from('profiles').insert({
+        auth_user_id: data.user.id,
+        member_code: memberCode,
+        full_name: namaTrimmed,
+        email: emailTrimmed,
+        phone: '',
         address: 'Kota Banda Aceh',
-        joinDate: 'Hari Ini',
-        level: 'Level 1 · Nasabah Baru',
-        idNasabah: `EB-${Date.now().toString().slice(-4)}`,
-        dropPointFavorit: mitraLocations[0].name,
-        avatarInitial: form.nama ? form.nama[0].toUpperCase() : 'N',
-      })
-    );
-    alert(`Akun berhasil dibuat untuk ${form.nama}! Silakan login.`);
-    router.push('/login');
+        district: 'Kota Banda Aceh',
+        role: 'nasabah',
+        level: 'Level 1 · Eco Starter',
+        points_balance: 0,
+        total_weight_kg: 0,
+        total_co2_saved_kg: 0,
+      });
+
+      if (profileError) {
+        setError(`Gagal menyimpan profil nasabah: ${profileError.message}`);
+        setLoading(false);
+        return;
+      }
+
+      localStorage.setItem(
+        'ecobank_user_profile',
+        JSON.stringify({
+          nama: namaTrimmed,
+          email: emailTrimmed,
+          phone: '',
+          address: 'Kota Banda Aceh',
+          district: 'Kota Banda Aceh',
+          joinDate: new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }),
+          level: 'Level 1 · Eco Starter',
+          idNasabah: memberCode,
+          dropPointFavorit: mitraLocations[0].name,
+          avatarInitial: namaTrimmed ? namaTrimmed[0].toUpperCase() : 'N',
+        })
+      );
+
+      if (data.session) {
+        alert(`Selamat datang, ${namaTrimmed}! Akun EcoBank Anda (${memberCode}) berhasil dibuat.`);
+        router.push('/dashboard');
+      } else {
+        alert(`Akun berhasil dibuat untuk ${namaTrimmed} (${memberCode})! Silakan masuk menggunakan email dan kata sandi Anda.`);
+        router.push('/login');
+      }
+    } catch {
+      setError('Terjadi gangguan koneksi ke server. Silakan coba lagi.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -70,6 +151,12 @@ export default function RegisterPage() {
               <h1 className="text-xl font-semibold text-slate-900">Buat akun EcoBank</h1>
               <p className="text-sm text-slate-600 mt-1.5">Isi data berikut untuk bergabung.</p>
             </div>
+
+            {error && (
+              <div role="alert" className="mb-4 text-sm text-red-700 border-l-2 border-red-600 pl-3 py-1">
+                <span>{error}</span>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -108,7 +195,7 @@ export default function RegisterPage() {
                     type={showPass ? 'text' : 'password'}
                     name="password"
                     required
-                    placeholder="Minimal 8 karakter"
+                    placeholder="Minimal 6 karakter"
                     value={form.password}
                     onChange={handleChange}
                     className="w-full px-3 py-2.5 pr-11 rounded-lg text-sm bg-white border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-700/20"
@@ -181,4 +268,3 @@ export default function RegisterPage() {
     </div>
   );
 }
-

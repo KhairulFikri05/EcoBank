@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 import { UserProfile, Impact } from './types';
 import { MitraLocation } from '@/lib/mitraLocations';
 
@@ -253,8 +254,9 @@ function PasswordModal({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPass.length < 6) {
       setError('Kata sandi baru minimal 6 karakter.');
@@ -262,6 +264,14 @@ function PasswordModal({ onClose, onSaved }: { onClose: () => void; onSaved: () 
     }
     if (newPass !== confirmPass) {
       setError('Konfirmasi kata sandi tidak cocok.');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    const { error: updateErr } = await supabase.auth.updateUser({ password: newPass });
+    setSaving(false);
+    if (updateErr) {
+      setError(updateErr.message || 'Gagal memperbarui kata sandi.');
       return;
     }
     onSaved();
@@ -380,9 +390,9 @@ interface ProfilSectionProps {
 }
 
 const PAYOUT_METHODS = [
-  { id: 'gopay', name: 'GoPay', detail: '0812-3456-7890', badgeBg: '#0ea5e9' },
-  { id: 'dana', name: 'DANA', detail: '0812-3456-7890', badgeBg: '#0284c7' },
-  { id: 'bank', name: 'Rekening Bank', detail: 'BSI · 7148290123', badgeBg: '#0f766e' },
+  { id: 'GoPay', name: 'GoPay', badgeBg: '#0ea5e9' },
+  { id: 'DANA', name: 'DANA', badgeBg: '#0284c7' },
+  { id: 'Rekening Bank', name: 'Rekening Bank', badgeBg: '#0f766e' },
 ] as const;
 
 export function ProfilSection({
@@ -401,14 +411,23 @@ export function ProfilSection({
   const [localToast, setLocalToast] = useState('');
 
   // Preferensi pencairan & notifikasi
-  const [selectedMethod, setSelectedMethod] = useState<'gopay' | 'dana' | 'bank'>('gopay');
+  const [selectedMethod, setSelectedMethod] = useState<'GoPay' | 'DANA' | 'Rekening Bank'>(
+    userProfile.payoutMethod || 'GoPay'
+  );
   const [showMethodPicker, setShowMethodPicker] = useState(false);
-  const [notifVerifikasi, setNotifVerifikasi] = useState(true);
-  const [notifJemput, setNotifJemput] = useState(true);
+  const [notifVerifikasi, setNotifVerifikasi] = useState(userProfile.notifVerification ?? true);
+  const [notifJemput, setNotifJemput] = useState(userProfile.notifPickup ?? true);
+
+  useEffect(() => {
+    setSelectedMethod(userProfile.payoutMethod || 'GoPay');
+    setNotifVerifikasi(userProfile.notifVerification ?? true);
+    setNotifJemput(userProfile.notifPickup ?? true);
+  }, [userProfile.payoutMethod, userProfile.notifVerification, userProfile.notifPickup]);
 
   const levelThreshold = 15;
   const levelProgress = Math.min((impact.totalKg / levelThreshold) * 100, 100);
   const activePayout = PAYOUT_METHODS.find((m) => m.id === selectedMethod) || PAYOUT_METHODS[0];
+  const activePayoutAccount = userProfile.payoutAccount || userProfile.phone || '0812-3456-7890';
 
   const showToast = (msg: string) => {
     setLocalToast(msg);
@@ -642,7 +661,15 @@ export function ProfilSection({
                   <label className="text-[11px] font-bold text-slate-600">Mitra Drop Point Utama</label>
                   <select
                     value={draft.dropPointFavorit}
-                    onChange={(e) => setDraft({ ...draft, dropPointFavorit: e.target.value })}
+                    onChange={(e) => {
+                      const selectedName = e.target.value;
+                      const matched = mitraLocations.find((l) => l.name === selectedName);
+                      setDraft({
+                        ...draft,
+                        dropPointFavorit: selectedName,
+                        preferredDropPointId: matched?.id || draft.preferredDropPointId,
+                      });
+                    }}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
                     {!mitraLocations.some((l) => l.name === draft.dropPointFavorit) && (
@@ -725,7 +752,7 @@ export function ProfilSection({
                     style={{ backgroundColor: activePayout.badgeBg }}
                   />
                   <span className="text-[11px] font-bold text-slate-800">
-                    {activePayout.name} · {activePayout.detail}
+                    {activePayout.name} · {activePayoutAccount}
                   </span>
                 </button>
               </div>
@@ -739,7 +766,13 @@ export function ProfilSection({
                       onClick={() => {
                         setSelectedMethod(m.id);
                         setShowMethodPicker(false);
-                        showToast(`Metode pencairan utama diubah ke ${m.name}.`);
+                        const updated: UserProfile = {
+                          ...userProfile,
+                          payoutMethod: m.id,
+                          payoutAccount: activePayoutAccount,
+                        };
+                        setUserProfile(updated);
+                        onSaveProfile(updated);
                       }}
                       className={`py-1.5 px-2 rounded-xl text-[10px] font-bold border transition-colors ${
                         selectedMethod === m.id
@@ -760,7 +793,13 @@ export function ProfilSection({
                 <span className="text-xs font-medium text-slate-700">Notifikasi Verifikasi Setoran</span>
                 <Toggle
                   checked={notifVerifikasi}
-                  onChange={() => setNotifVerifikasi((v) => !v)}
+                  onChange={() => {
+                    const next = !notifVerifikasi;
+                    setNotifVerifikasi(next);
+                    const updated: UserProfile = { ...userProfile, notifVerification: next };
+                    setUserProfile(updated);
+                    onSaveProfile(updated);
+                  }}
                   label="Notifikasi Verifikasi Setoran"
                 />
               </div>
@@ -768,7 +807,13 @@ export function ProfilSection({
                 <span className="text-xs font-medium text-slate-700">Pengingat Jadwal Jemput</span>
                 <Toggle
                   checked={notifJemput}
-                  onChange={() => setNotifJemput((v) => !v)}
+                  onChange={() => {
+                    const next = !notifJemput;
+                    setNotifJemput(next);
+                    const updated: UserProfile = { ...userProfile, notifPickup: next };
+                    setUserProfile(updated);
+                    onSaveProfile(updated);
+                  }}
                   label="Pengingat Jadwal Jemput"
                 />
               </div>

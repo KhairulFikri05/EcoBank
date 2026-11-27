@@ -9,7 +9,7 @@ export type Transaction = {
   date: string;
   monthGroup?: string;
   dropPoint?: string;
-  status?: 'Terverifikasi' | 'Menunggu' | 'Berhasil';
+  status?: 'Terverifikasi' | 'Menunggu' | 'Berhasil' | 'Ditolak';
   photoUrl?: string | null;
   emisi?: number;
   weight?: number;
@@ -24,24 +24,45 @@ export type Impact = {
 
 export type WasteItem = {
   id: string;
+  uuid?: string;
+  slug?: string;
   nama?: string;
   name?: string;
   poinPerKg: number;
   emisiPerKg: number;
 };
 
+export type DropPointOption = {
+  id: string;
+  mitraCode?: string;
+  name: string;
+  district?: string;
+  address: string;
+  phone?: string;
+  distance?: string;
+  hours: string;
+  status: string;
+  latitude?: number;
+  longitude?: number;
+};
+
 export type DropoffPayload = {
   wasteType?: string;
+  wasteCategoryId?: string;
   wasteDetail?: string;
   weight?: number;
   totalPoin: number;
   totalEmisi: number;
   dropPoint?: string;
+  dropPointId?: string;
   photoUrl?: string | null;
+  photoFile?: File | null;
+  notes?: string;
 };
 
 export type RewardItem = {
   id: string;
+  uuid?: string;
   title: string;
   category: string;
   points: number;
@@ -49,15 +70,34 @@ export type RewardItem = {
   iconBg: string;
 };
 
+export type EducationArticleItem = {
+  id: number;
+  title: string;
+  excerpt: string;
+  content: string;
+  category: string;
+  readTime: string;
+  coverImage: string;
+};
+
 export type UserProfile = {
+  id?: string;
   nama: string;
   email: string;
   phone: string;
   address: string;
+  district?: string;
   joinDate: string;
   level: string;
   idNasabah: string;
   dropPointFavorit: string;
+  preferredDropPointId?: string;
+  payoutMethod?: 'GoPay' | 'DANA' | 'Rekening Bank';
+  payoutAccount?: string;
+  notifVerification?: boolean;
+  notifPickup?: boolean;
+  lastLoginAt?: string;
+  role?: string;
   avatarInitial: string;
 };
 

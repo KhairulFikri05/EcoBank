@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useWaste } from '@/hooks/useWaste';
 import { CalculatorContext, StandardCalculationStrategy } from '@/lib/wasteStrategy';
-import { DropoffPayload, WasteItem, nearbyDropPoints } from './types';
+import { DropoffPayload, DropPointOption, WasteItem, nearbyDropPoints } from './types';
 import {
   IconCamera,
   IconX,
@@ -184,18 +184,37 @@ export function LiveCameraModal({
   );
 }
 
-export function CalculatorSection({ onSave }: { onSave: (payload: DropoffPayload) => void }) {
-  const { wasteTypes = [] as WasteItem[] } = useWaste() as { wasteTypes?: WasteItem[] };
+export function CalculatorSection({
+  onSave,
+  dropPoints,
+  wasteCategories,
+}: {
+  onSave: (payload: DropoffPayload) => void;
+  dropPoints?: DropPointOption[];
+  wasteCategories?: WasteItem[];
+}) {
+  const { wasteTypes: localWasteTypes = [] as WasteItem[] } = useWaste() as { wasteTypes?: WasteItem[] };
+  const wasteTypes = wasteCategories && wasteCategories.length > 0 ? wasteCategories : localWasteTypes;
+  const dropPointList: DropPointOption[] =
+    dropPoints && dropPoints.length > 0 ? dropPoints : nearbyDropPoints;
+
   const [weights, setWeights] = useState<Record<string, number>>({});
-  const [selectedDropPointId, setSelectedDropPointId] = useState<string>(nearbyDropPoints[0].id);
+  const [selectedDropPointId, setSelectedDropPointId] = useState<string>(dropPointList[0]?.id || '');
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoName, setPhotoName] = useState<string>('');
   const [isCameraOpen, setIsCameraOpen] = useState<boolean>(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (dropPointList.length > 0 && !dropPointList.some((dp) => dp.id === selectedDropPointId)) {
+      setSelectedDropPointId(dropPointList[0].id);
+    }
+  }, [dropPointList, selectedDropPointId]);
+
   const selectedDropPoint =
-    nearbyDropPoints.find((dp) => dp.id === selectedDropPointId) || nearbyDropPoints[0];
+    dropPointList.find((dp) => dp.id === selectedDropPointId) || dropPointList[0];
 
   const handleWeightChange = (id: string, weight: number) => {
     const clamped = Math.max(0, Math.round(weight * 10) / 10);
@@ -214,15 +233,23 @@ export function CalculatorSection({ onSave }: { onSave: (payload: DropoffPayload
   const handleFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setPhotoFile(file);
     setPhotoName(file.name);
     const reader = new FileReader();
     reader.onload = (ev) => setPhotoPreview(ev.target?.result as string);
     reader.readAsDataURL(file);
   }, []);
 
-  const handleCameraCapture = (dataUrl: string, filename: string) => {
+  const handleCameraCapture = async (dataUrl: string, filename: string) => {
     setPhotoPreview(dataUrl);
     setPhotoName(filename);
+    try {
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      setPhotoFile(new File([blob], filename, { type: blob.type || 'image/jpeg' }));
+    } catch {
+      setPhotoFile(null);
+    }
   };
 
   const calculateTotal = () => {
@@ -244,20 +271,27 @@ export function CalculatorSection({ onSave }: { onSave: (payload: DropoffPayload
 
   const handleTriggerSave = () => {
     if (totals.totalPoin > 0) {
-      const selectedItems = wasteTypes
-        .filter((item: WasteItem) => (weights[item.id] ?? 0) > 0)
-        .map((item: WasteItem) => `${(weights[item.id] ?? 0).toFixed(1)} kg ${item.nama || item.name || item.id}`);
+      const activeItems = wasteTypes.filter((item: WasteItem) => (weights[item.id] ?? 0) > 0);
+      const selectedItems = activeItems.map(
+        (item: WasteItem) => `${(weights[item.id] ?? 0).toFixed(1)} kg ${item.nama || item.name || item.id}`
+      );
+      const primaryCategory = activeItems[0];
 
       onSave({
         totalPoin: totals.totalPoin,
         totalEmisi: Number(totals.totalEmisi.toFixed(2)),
         weight: totalWeight,
         dropPoint: selectedDropPoint.name,
+        dropPointId: selectedDropPoint.id,
+        wasteCategoryId: primaryCategory?.uuid || undefined,
+        wasteType: primaryCategory?.slug || primaryCategory?.id,
         photoUrl: photoPreview,
+        photoFile,
         wasteDetail: selectedItems.join(', '),
       });
       setWeights({});
       setPhotoPreview(null);
+      setPhotoFile(null);
       setPhotoName('');
     }
   };
@@ -301,9 +335,9 @@ export function CalculatorSection({ onSave }: { onSave: (payload: DropoffPayload
                   {selectedDropPoint.name}
                 </span>
                 <span className="text-[11px] text-slate-500 font-medium">
-                  · {selectedDropPoint.distance} · Buka {selectedDropPoint.hours}
+                  {selectedDropPoint.distance ? `· ${selectedDropPoint.distance} ` : ''}· Buka {selectedDropPoint.hours}
                 </span>
-                {selectedDropPoint.id === nearbyDropPoints[0].id && (
+                {selectedDropPoint.id === dropPointList[0]?.id && (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
                     Terdekat
                   </span>
@@ -318,7 +352,7 @@ export function CalculatorSection({ onSave }: { onSave: (payload: DropoffPayload
 
             {isDropdownOpen && (
               <div className="absolute left-0 right-0 z-20 mt-1 bg-white rounded-xl border border-emerald-900/15 shadow-lg overflow-hidden divide-y divide-slate-100">
-                {nearbyDropPoints.map((dp, idx) => {
+                {dropPointList.map((dp, idx) => {
                   const isSelected = dp.id === selectedDropPoint.id;
                   return (
                     <button
